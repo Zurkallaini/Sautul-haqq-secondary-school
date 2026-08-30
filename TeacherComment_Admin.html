@@ -1,0 +1,520 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Form Master's Comment - Admin</title>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+<style>
+*{
+margin:0;
+padding:0;
+box-sizing:border-box;
+font-family:Arial,sans-serif
+}
+
+html,body,.box{
+height:auto!important;
+overflow:visible!important
+}
+
+body{
+background:#e6f0ff;
+padding:10px
+}
+
+.box{
+background:#fff;
+border-radius:12px;
+padding:15px;
+max-width:900px;
+margin:auto
+}
+
+h2{
+text-align:center;
+color:#2563eb;
+font-size:18px;
+margin-bottom:10px;
+font-weight:bold
+}
+
+.info{
+text-align:center;
+background:#e6f0ff;
+padding:10px;
+border-radius:8px;
+margin-bottom:12px;
+font-weight:bold;
+color:#2563eb
+}
+
+.filter-bar{
+display:grid;
+grid-template-columns:1fr 1fr 1fr auto;
+gap:10px;
+margin-bottom:15px;
+padding:10px;
+background:#e6f0ff;
+border-radius:8px
+}
+
+@media(max-width:700px){
+.filter-bar{
+grid-template-columns:1fr
+}
+}
+
+select,
+input,
+button{
+padding:10px;
+border-radius:6px;
+border:1px solid #ccc;
+width:100%;
+font-size:14px
+}
+
+.btn-load{
+background:#2563eb;
+color:#fff;
+font-weight:bold;
+border:none;
+cursor:pointer
+}
+
+.btn-save{
+background:#16a34a;
+color:#fff;
+font-weight:bold;
+border:none;
+padding:12px;
+border-radius:8px;
+width:100%;
+margin-top:10px;
+cursor:pointer;
+font-size:16px
+}
+
+.table-wrapper{
+overflow-x:auto;
+max-height:none;
+overflow-y:visible
+}
+
+table{
+width:100%;
+border-collapse:collapse;
+font-size:13px;
+min-width:600px
+}
+
+th{
+background:#2563eb;
+color:#fff;
+padding:10px;
+text-align:center;
+white-space:nowrap
+}
+
+td{
+padding:8px;
+border:1px solid #ddd;
+text-align:center
+}
+
+.left{
+text-align:left
+}
+
+.comment-box{
+width:100%;
+padding:8px;
+border:1px solid #ccc;
+border-radius:5px
+}
+
+.alert{
+padding:10px;
+border-radius:8px;
+margin:10px 0;
+display:none;
+text-align:center;
+font-weight:bold
+}
+
+.alert.success{
+background:#d1fae5;
+color:#065f46
+}
+
+.alert.error{
+background:#fee2e2;
+color:#991b1b
+}
+</style>
+</head>
+
+<body>
+
+<div class="box">
+
+<h2>👨‍🏫 Form Master's Comment</h2>
+
+<div id="alert" class="alert"></div>
+
+<div class="info">
+Select Class, Session, Term and Click Load
+</div>
+
+<div class="filter-bar">
+
+<select id="comClass">
+<option value="">Select Class</option>
+</select>
+
+<select id="comSession">
+<option value="">Select Session</option>
+</select>
+
+<select id="comTerm">
+<option value="">Select Term</option>
+</select>
+
+<button class="btn-load"
+onclick="loadStudents()">
+Load
+</button>
+
+</div>
+
+<input
+type="text"
+id="formMasterName"
+placeholder="Enter Form Master's Name"
+style="margin-bottom:15px">
+
+<div class="table-wrapper">
+
+<table>
+
+<thead>
+
+<tr>
+<th>S/N</th>
+<th class="left">STUDENT NAME</th>
+<th>FORM MASTER'S COMMENT</th>
+</tr>
+
+</thead>
+
+<tbody id="commentTbl">
+
+<tr>
+<td colspan="3">
+Select Class, Session, Term and click Load
+</td>
+</tr>
+
+</tbody>
+
+</table>
+
+</div>
+
+<button
+class="btn-save"
+onclick="saveComments()">
+Save Form Master's Comment
+</button>
+
+</div>
+
+<script>
+
+const db=supabase.createClient(
+'https://izhxzibsixhbsucfquyt.supabase.co',
+'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml6aHh6aWJzaXhoYnN1Y2ZxdXl0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODUzNzk0NTgsImV4cCI6MjEwMDk1NTQ1OH0.vnP0BhywqE0kt1zrxwq7uGeJ76EOowOHXi5CNyMGWUM'
+)
+
+let currentStudents=[]
+
+function showAlert(
+msg,
+type='success'
+){
+
+const a=document.getElementById('alert')
+
+a.className=`alert ${type}`
+
+a.innerText=msg
+
+a.style.display='block'
+
+setTimeout(()=>{
+a.style.display='none'
+},3000)
+
+}
+
+async function init(){
+
+let {data:sess}=await db
+.from('sessions')
+.select('*')
+
+let {data:term}=await db
+.from('terms')
+.select('*')
+
+let {data:classes}=await db
+.from('classes')
+.select('*')
+.order('class_name')
+
+comSession.innerHTML=
+'<option value="">Select Session</option>'+
+(sess||[]).map(s=>
+`<option value="${s.id}">
+${s.session_name}
+</option>`).join('')
+
+comTerm.innerHTML=
+'<option value="">Select Term</option>'+
+(term||[]).map(t=>
+`<option value="${t.id}">
+${t.term_name}
+</option>`).join('')
+
+comClass.innerHTML=
+'<option value="">Select Class</option>'+
+(classes||[]).map(c=>
+`<option value="${c.id}">
+${c.class_name}
+</option>`).join('')
+}
+async function loadStudents(){
+
+let cid=comClass.value
+let ss=comSession.value
+let tt=comTerm.value
+
+if(!cid||!ss||!tt){
+return showAlert(
+'Select Class, Session and Term',
+'error'
+)
+}
+
+showAlert('Loading...')
+
+let {data:stu}=await db
+.from('students')
+.select('*')
+.eq('class_id',cid)
+.order('student_name')
+
+let {data:comments,error}=await db
+.from('student_comments')
+.select('*')
+.eq('class_id',cid)
+.eq('session_id',ss)
+.eq('term_id',tt)
+
+if(error){
+console.log(error)
+return showAlert(
+error.message,
+'error'
+)
+}
+
+currentStudents=(stu||[]).map(s=>{
+
+let c=comments?.find(
+x=>x.student_id==s.id
+)||{}
+
+return{
+...s,
+comment:c.comment||'',
+form_master_name:
+c.form_master_name||''
+}
+
+})
+
+if(comments&&comments.length){
+
+document.getElementById(
+'formMasterName'
+).value=
+comments[0]
+.form_master_name||''
+
+}
+
+renderTable()
+
+showAlert(
+'Loaded '+currentStudents.length+
+' Students'
+)
+
+if(window.parent)
+window.parent.postMessage(
+'resize',
+'*'
+)
+
+}
+
+function renderTable(){
+
+commentTbl.innerHTML=
+currentStudents.map((s,i)=>`
+
+<tr>
+
+<td>${i+1}</td>
+
+<td class="left">
+${s.student_name}
+</td>
+
+<td>
+
+<input
+type="text"
+class="comment-box"
+id="comment_${s.id}"
+value="${s.comment||''}"
+placeholder="Enter Form Master's Comment">
+
+</td>
+
+</tr>
+
+`).join('')
+
+if(currentStudents.length===0){
+
+commentTbl.innerHTML=`
+
+<tr>
+
+<td colspan="3">
+No Students Found
+</td>
+
+</tr>
+
+`
+
+}
+
+}
+
+async function saveComments(){
+
+let cid=comClass.value
+let ss=comSession.value
+let tt=comTerm.value
+
+if(!cid||!ss||!tt){
+
+return showAlert(
+'Select Class, Session and Term',
+'error'
+)
+
+}
+
+if(currentStudents.length===0){
+
+return showAlert(
+'Click Load First',
+'error'
+)
+
+}
+
+const formMasterName=
+document.getElementById(
+'formMasterName'
+).value.trim()
+
+if(!formMasterName){
+
+return showAlert(
+'Enter Form Master Name',
+'error'
+)
+
+}
+
+showAlert('Saving...')
+
+let dataToSave=
+currentStudents.map(s=>{
+
+let comment=
+document.getElementById(
+`comment_${s.id}`
+).value.trim()||null
+
+return{
+
+student_id:s.id,
+student_name:s.student_name,
+
+class_id:cid,
+
+session_id:ss,
+term_id:tt,
+
+comment:comment,
+
+form_master_name:
+formMasterName
+
+}
+
+})
+
+let {error}=await db
+.from('student_comments')
+.upsert(
+dataToSave,
+{
+onConflict:
+'student_id,class_id,session_id,term_id'
+}
+)
+
+if(error){
+
+showAlert(
+'Error: '+error.message,
+'error'
+)
+
+}else{
+
+showAlert(
+'Form Master Comments Saved Successfully'
+)
+
+}
+
+}
+
+init()
+
+</script>
+
+</body>
+</html>

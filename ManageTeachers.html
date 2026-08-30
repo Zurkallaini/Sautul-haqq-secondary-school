@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Manage Teachers</title>
+<style>
+*{box-sizing:border-box;font-family:Arial}
+body{background:#2563eb;padding:15px;margin:0;min-height:100vh}
+.card{background:white;border-radius:15px;padding:15px;box-shadow:0 2px 10px rgba(0,0,0,.1)}
+.top{display:flex;justify-content:space-between;align-items:center;margin-bottom:15px;flex-wrap:wrap;gap:10px}
+h2{color:#111827;margin:0;font-size:18px}
+.btn{padding:10px 15px;border:none;border-radius:10px;cursor:pointer;font-weight:bold;color:white}
+.btn-add{background:#2563eb}
+.btn-assign{background:#16a34a}
+.btn-del{background:#dc2626;padding:5px 10px;font-size:12px;border-radius:6px}
+.table-wrapper{overflow-x:auto; width:100%;}
+table{min-width:650px; width:100%; border-collapse:collapse; margin-top:10px; font-size:13px; border-radius:10px; overflow:hidden}
+thead th{background:#2563eb;color:white;padding:12px 8px;text-align:left;font-weight:bold; white-space:nowrap;}
+
+/* THIS IS THE CHANGE */
+tbody td{padding:12px 8px;border-bottom:1px solid #eee;background:white; vertical-align:top;}
+tbody td:nth-child(4), tbody td:nth-child(5){ 
+    white-space:normal;  /* Allow wrapping */
+    word-wrap:break-word; /* Break long words */
+    max-width:200px; /* Limit width so it drops down */
+}
+
+.modal{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:1000;justify-content:center;align-items:center}
+.modal-content{background:white;padding:20px;border-radius:12px;width:90%;max-width:500px}
+.modal-content input, .modal-content select{width:100%;padding:10px;margin:8px 0;border:1px solid #ccc;border-radius:6px}
+#msg, #msg2{padding:10px;border-radius:8px;margin-bottom:10px;display:none;font-weight:bold;text-align:center}
+.msg-success{background:#d1fae5;color:#065f46}
+.msg-error{background:#fee2e2;color:#991b1b}
+</style>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+<div class="card">
+    <div class="top">
+        <h2>Manage Teachers</h2>
+        <div>
+            <button class="btn btn-add" onclick="openAddModal()">+ Add Teacher</button>
+            <button class="btn btn-assign" onclick="openAssignModal()">+ Assign Subject</button>
+        </div>
+    </div>
+    <div class="table-wrapper">
+    <table>
+        <thead><tr><th>S/N</th><th>NAME</th><th>CODE</th><th>CLASS</th><th>SUBJECT TEACHING</th><th>ACTION</th></tr></thead>
+        <tbody id="teacherTable"><tr><td colspan="6" style="text-align:center">Loading...</td></tr></tbody>
+    </table>
+    </div>
+</div>
+
+<!-- ADD TEACHER MODAL -->
+<div class="modal" id="addModal">
+    <div class="modal-content">
+        <h3>Add New Teacher</h3>
+        <div id="msg"></div> 
+        <input type="text" id="tName" placeholder="Teacher Full Name" required>
+        <input type="text" id="tCode" placeholder="Teacher Code e.g ZM8004" required>
+        <button class="btn btn-add" onclick="saveTeacher()">Save Teacher</button>
+        <button class="btn" style="background:#ccc;color:black" onclick="closeAddModal()">Cancel</button>
+    </div>
+</div>
+
+<!-- ASSIGN SUBJECT MODAL -->
+<div class="modal" id="assignModal">
+    <div class="modal-content">
+        <h3>Assign Subject to Teacher</h3>
+        <div id="msg2"></div> 
+        <select id="aTeacher"></select>
+        <select id="aClass"></select>
+        <select id="aSubject"></select>
+        <button class="btn btn-assign" onclick="saveAssignment()">Assign</button>
+        <button class="btn" style="background:#ccc;color:black" onclick="closeAssignModal()">Cancel</button>
+    </div>
+</div>
+
+<script>
+const SUPABASE_URL = 'https://izhxzibsixhbsucfquyt.supabase.co'
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml6aHh6aWJzaXhoYnN1Y2ZxdXl0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODUzNzk0NTgsImV4cCI6MjEwMDk1NTQ1OH0.vnP0BhywqE0kt1zrxwq7uGeJ76EOowOHXi5CNyMGWUM'
+const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY)
+
+let teachersData = []; let classesData = []; let subjectsData = [];
+
+function openAddModal(){ document.getElementById('addModal').style.display='flex'; document.getElementById('msg').style.display='none'; }
+function closeAddModal(){ document.getElementById('addModal').style.display='none' }
+function openAssignModal(){ loadDropdowns(); document.getElementById('assignModal').style.display='flex'; document.getElementById('msg2').style.display='none'; }
+function closeAssignModal(){ document.getElementById('assignModal').style.display='none' }
+function showMsg(id, text, type){ const msg = document.getElementById(id); msg.innerText = text; msg.className = type === 'success'? 'msg-success' : 'msg-error'; msg.style.display = 'block'; }
+
+async function loadData(){
+    teachersData = (await db.from('teachers').select('*').order('id')).data || [];
+    classesData = (await db.from('classes').select('*')).data || [];
+    subjectsData = (await db.from('subjects').select('*')).data || [];
+    let assignments = (await db.from('teacher_subjects').select('*')).data || [];
+    
+    let tbody = '';
+    if(teachersData.length === 0){ tbody = '<tr><td colspan="6" style="text-align:center">No teachers added yet</td></tr>'; }
+    else {
+        teachersData.forEach((t, i) => {
+            let teacherAssign = assignments.filter(a => a.teacher_code == t.teacher_code);
+            
+            // Get class names directly from teacher_subjects
+            let className = [...new Set(teacherAssign.map(a => a.class_name))].filter(Boolean).join(', ') || 'N/A';
+            
+            // Get subject names
+            let subjectName = [...new Set(teacherAssign.map(a => subjectsData.find(s => s.id == a.subject_id)?.subject_name).filter(Boolean))].join(', ') || 'N/A';
+
+            tbody += `<tr>
+                <td>${i+1}</td>
+                <td>${t.teacher_name}</td>
+                <td>${t.teacher_code || 'N/A'}</td>
+                <td>${className}</td>
+                <td>${subjectName}</td>
+                <td><button class="btn-del" onclick="deleteTeacher(${t.id})">Delete</button></td>
+            </tr>`
+        });
+    }
+    document.getElementById('teacherTable').innerHTML = tbody;
+}
+
+async function loadDropdowns(){
+    document.getElementById('aTeacher').innerHTML = '<option value="">Select Teacher</option>' + teachersData.map(t => `<option value="${t.teacher_code}">${t.teacher_name}</option>`).join('');
+    document.getElementById('aClass').innerHTML = '<option value="">Select Class</option>' + classesData.map(c => `<option value="${c.id}">${c.class_name}</option>`).join('');
+    document.getElementById('aSubject').innerHTML = '<option value="">Select Subject</option>' + subjectsData.map(s => `<option value="${s.id}">${s.subject_name}</option>`).join('');
+}
+
+async function saveAssignment(){
+    const teacher_code = document.getElementById('aTeacher').value;
+    const class_id = document.getElementById('aClass').value;
+    const subject_id = document.getElementById('aSubject').value;
+    
+    if(!teacher_code || !class_id || !subject_id) return showMsg('msg2', 'Fill all fields', 'error');
+    
+    // Get the names
+    const teacher_name = teachersData.find(t => t.teacher_code == teacher_code)?.teacher_name;
+    const class_name = classesData.find(c => c.id == class_id)?.class_name;
+    
+    // Check if already assigned
+    let {data: check} = await db.from('teacher_subjects').select('id').eq('teacher_code', teacher_code).eq('class_id', class_id).eq('subject_id', subject_id).maybeSingle();
+    if(check) return showMsg('msg2', 'Already assigned', 'error');
+
+    const {error} = await db.from('teacher_subjects').insert([{
+        teacher_code, 
+        teacher_name, // SAVED NOW
+        class_id, 
+        class_name,   // SAVED NOW
+        subject_id
+    }]);
+    if(error) return showMsg('msg2', 'Error: ' + error.message, 'error');
+    
+    showMsg('msg2', 'Assigned Successfully', 'success');
+    
+    setTimeout(async () => { 
+        closeAssignModal(); 
+        await loadData(); 
+        document.getElementById('aTeacher').value = '';
+        document.getElementById('aClass').value = '';
+        document.getElementById('aSubject').value = '';
+    }, 800);
+}
+
+async function saveTeacher(){
+    const name = document.getElementById('tName').value.trim();
+    const code = document.getElementById('tCode').value.trim().toUpperCase();
+    if(!name ||!code) return showMsg('msg', 'Fill all fields', 'error');
+    let {data: nameCheck} = await db.from('teachers').select('id').eq('teacher_name', name).maybeSingle();
+    if(nameCheck) return showMsg('msg', 'Name already exist', 'error');
+    let {data: codeCheck} = await db.from('teachers').select('id').eq('teacher_code', code).maybeSingle();
+    if(codeCheck) return showMsg('msg', 'Code already exist', 'error');
+    const {error} = await db.from('teachers').insert([{teacher_name: name, teacher_code: code}]);
+    if(error) return showMsg('msg', 'Error: ' + error.message, 'error');
+    showMsg('msg', 'Added Successfully', 'success');
+    document.getElementById('tName').value = ''; document.getElementById('tCode').value = '';
+    setTimeout(() => { closeAddModal(); loadData(); }, 1200);
+}
+
+async function deleteTeacher(id){ 
+    if(!confirm('Delete this teacher?')) return; 
+    await db.from('teachers').delete().eq('id', id); 
+    loadData(); 
+}
+
+loadData();
+</script>
+</body>
+</html>

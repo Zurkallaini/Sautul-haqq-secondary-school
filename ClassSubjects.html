@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Assign Subject</title>
+<style>
+body{background:#2563eb;font-family:Arial;padding:15px;color:white}
+.card{background:white;color:black;border-radius:15px;padding:20px;max-width:500px;margin:auto}
+.card h2{margin-top:0}
+select, button{width:100%;padding:12px;margin:10px 0;border-radius:8px;border:1px solid #ccc;font-size:15px}
+.btn-assign{background:#16a34a;color:white;border:none;font-weight:bold;cursor:pointer}
+.btn-cancel{background:#dc2626;color:white;border:none;font-weight:bold;cursor:pointer}
+label{font-weight:bold;margin-top:10px;display:block}
+#msg{padding:10px;border-radius:8px;margin-bottom:10px;display:none;font-weight:bold;text-align:center}
+.msg-success{background:#d1fae5;color:#065f46}
+.msg-error{background:#fee2e2;color:#991b1b}
+</style>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+<div class="card">
+    <h2>Assign Subject to Teacher</h2>
+    <div id="msg"></div>
+    
+    <label>Select Teacher</label>
+    <select id="aTeacher"><option>Loading...</option></select>
+    
+    <label>Select Class</label>
+    <select id="aClass"><option>Loading...</option></select>
+    
+    <label>Select Subject</label>
+    <select id="aSubject"><option>Select Class First</option></select>
+    
+    <button class="btn-assign" onclick="saveAssignment()">Assign</button>
+    <button class="btn-cancel" onclick="window.location.href='./ManageTeachers.html'">Cancel</button>
+</div>
+
+<script>
+const SUPABASE_URL = 'https://izhxzibsixhbsucfquyt.supabase.co'
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml6aHh6aWJzaXhoYnN1Y2ZxdXl0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODUzNzk0NTgsImV4cCI6MjEwMDk1NTQ1OH0.vnP0BhywqE0kt1zrxwq7uGeJ76EOowOHXi5CNyMGWUM'
+const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY)
+
+let teachersData = []; let classesData = []; let subjectsData = []; let classSubjectsData = [];
+
+function showMsg(text, type){ const msg = document.getElementById('msg'); msg.innerText = text; msg.className = type === 'success'? 'msg-success' : 'msg-error'; msg.style.display = 'block'; setTimeout(()=>msg.style.display='none', 2000); }
+
+async function loadData(){
+    teachersData = (await db.from('teachers').select('*')).data || [];
+    classesData = (await db.from('classes').select('*')).data || [];
+    subjectsData = (await db.from('subjects').select('*')).data || [];
+    classSubjectsData = (await db.from('class_subjects').select('class_id, subject_id')).data || [];
+    
+    document.getElementById('aTeacher').innerHTML = '<option value="">Select Teacher</option>' + teachersData.map(t => `<option value="${t.teacher_code}">${t.teacher_name}</option>`).join('');
+    document.getElementById('aClass').innerHTML = '<option value="">Select Class</option>' + classesData.map(c => `<option value="${c.id}">${c.class_name}</option>`).join('');
+}
+
+document.getElementById('aClass').addEventListener('change', function(){
+    const classId = this.value;
+    if(!classId){ document.getElementById('aSubject').innerHTML = '<option>Select Class First</option>'; return; }
+    
+    // Get subject_ids for this class from class_subjects
+    let subjectIds = classSubjectsData.filter(cs => cs.class_id == classId).map(cs => cs.subject_id);
+    
+    // Filter subjectsData to only those subjectIds
+    let filteredSubjects = subjectsData.filter(s => subjectIds.includes(s.id));
+    
+    if(filteredSubjects.length === 0){
+        document.getElementById('aSubject').innerHTML = '<option>No subjects assigned to this class</option>';
+    } else {
+        document.getElementById('aSubject').innerHTML = '<option value="">Select Subject</option>' + filteredSubjects.map(s => `<option value="${s.id}">${s.subject_name}</option>`).join('');
+    }
+});
+
+async function saveAssignment(){
+    const teacher_code = document.getElementById('aTeacher').value;
+    const class_id = document.getElementById('aClass').value;
+    const subject_id = document.getElementById('aSubject').value;
+    
+    if(!teacher_code || !class_id || !subject_id) return showMsg('Fill all fields', 'error');
+    
+    let {data: check} = await db.from('teacher_subjects').select('id').eq('teacher_code', teacher_code).eq('class_id', class_id).eq('subject_id', subject_id).maybeSingle();
+    if(check) return showMsg('Already assigned', 'error');
+
+    const {error} = await db.from('teacher_subjects').insert([{teacher_code, class_id, subject_id}]);
+    if(error) return showMsg('Error: ' + error.message, 'error');
+    
+    showMsg('Assigned Successfully', 'success');
+    setTimeout(() => { document.getElementById('aTeacher').value = ''; document.getElementById('aSubject').value = ''; }, 1000);
+}
+
+loadData();
+</script>
+</body>
+</html>

@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Class Register</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;font-family:'Segoe UI',Arial}
+body{background:linear-gradient(135deg,#2563eb 0%,#1e40af 100%);padding:15px;min-height:100vh}
+.card{background:white;border-radius:20px;padding:25px;box-shadow:0 10px 30px rgba(0,0,0,.2)}
+.header{display:flex;align-items:center;gap:10px;margin-bottom:20px}
+.header h2{color:#1e293b;font-size:22px}
+.info-grid{display:grid;gap:15px}
+.info-item{background:#eff6ff;padding:15px;border-radius:12px;border-left:4px solid #2563eb}
+.info-item label{font-size:12px;color:#64748b;font-weight:600;text-transform:uppercase}
+.info-item p{font-size:18px;color:#0f172a;font-weight:bold;margin-top:5px}
+</style>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script></head><body>
+<div class="card">
+    <div class="header"><h2>🏫 My Class Register</h2></div>
+    <div id="classInfo">Loading...</div>
+</div>
+<script>
+const db = supabase.createClient('https://izhxzibsixhbsucfquyt.supabase.co','eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml6aHh6aWJzaXhoYnN1Y2ZxdXl0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODUzNzk0NTgsImV4cCI6MjEwMDk1NTQ1OH0.vnP0BhywqE0kt1zrxwq7uGeJ76EOowOHXi5CNyMGWUM')
+const teacherId = localStorage.getItem('teacherId');
+const teacherName = localStorage.getItem('teacherName');
+
+async function load(){
+    if(!teacherId) return document.getElementById('classInfo').innerText = 'Please login first';
+    let {data: myClass} = await db.from('class_registers').select('*').eq('teacher_id', teacherId).maybeSingle();
+    if(!myClass) return document.getElementById('classInfo').innerText = 'No class assigned to you as Class Teacher';
+    
+    let {count: totalStudents} = await db.from('students').select('*', {count:'exact', head:true}).eq('class_id', myClass.class_id);
+    
+    document.getElementById('classInfo').innerHTML = `
+        <div class="info-grid">
+            <div class="info-item"><label>Class Teacher</label><p>${teacherName}</p></div>
+            <div class="info-item"><label>Class</label><p>${myClass.class_name}</p></div>
+            <div class="info-item"><label>Total Students</label><p>${totalStudents}</p></div>
+            <div class="info-item"><label>Role</label><p>Class Teacher</p></div>
+        </div>
+    `;
+}
+load();
+</script></body></html>

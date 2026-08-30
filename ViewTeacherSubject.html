@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>View Teacher Subjects</title>
+<style>
+*{box-sizing:border-box}
+body{background:linear-gradient(135deg,#0037c7,#005dff);padding:20px;font-family:Arial; min-height:100vh}
+.card{background:white;border-radius:20px;padding:25px; max-width:900px; margin:auto; box-shadow:0 10px 30px rgba(0,0,0,.2)}
+h2{color:#111827; margin-bottom:15px}
+select{width:100%;padding:14px;margin:8px 0 20px 0;border:1px solid #ccc;border-radius:10px; font-size:16px; background:#f3f3f3}
+.table-wrapper{ overflow-x: auto; margin-top:15px; border-radius:10px; border:1px solid #ddd }
+table{width:100%;border-collapse:collapse; min-width: 600px; }
+th{background:#1e5eff;color:white;padding:14px 10px;text-align:left; white-space: nowrap; font-size:15px}
+td{padding:12px 10px;border-bottom:1px solid #eee; white-space: nowrap; font-size:14px}
+tr:hover{background:#f9fafb}
+</style>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+<div class="card">
+    <h2>View Subject For Teacher</h2>
+    <select id="teacherSelect" onchange="loadTeacherSubjects()">
+        <option value="">Loading Teachers...</option>
+    </select>
+
+    <div class="table-wrapper">
+        <table>
+            <thead>
+                <tr>
+                    <th>S/N</th>
+                    <th>CLASS ASSIGNED</th>
+                    <th>SUBJECT ASSIGNED</th>
+                </tr>
+            </thead>
+            <tbody id="subjectTable">
+                <tr><td colspan="3" style="text-align:center">Select a teacher to view assignments</td></tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<script>
+const SUPABASE_URL = 'https://izhxzibsixhbsucfquyt.supabase.co'
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml6aHh6aWJzaXhoYnN1Y2ZxdXl0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODUzNzk0NTgsImV4cCI6MjEwMDk1NTQ1OH0.vnP0BhywqE0kt1zrxwq7uGeJ76EOowOHXi5CNyMGWUM'
+const db = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
+
+async function loadTeachers(){
+    let {data: teachers, error} = await db.from('teachers').select('*').order('teacher_name');
+    if(error) return subjectTable.innerHTML = `<tr><td colspan="3">Error: ${error.message}</td></tr>`;
+    
+    teacherSelect.innerHTML = '<option value="">Select Teacher</option>' + 
+    teachers.map(t=>`<option value="${t.teacher_code}">${t.teacher_name}</option>`).join('');
+}
+
+async function loadTeacherSubjects(){
+    const code = teacherSelect.value;
+    if(!code) {
+        subjectTable.innerHTML = '<tr><td colspan="3" style="text-align:center">Select a teacher to view assignments</td></tr>';
+        return;
+    }
+    
+    subjectTable.innerHTML = '<tr><td colspan="3" style="text-align:center">Loading...</td></tr>';
+    
+    let {data, error} = await db.from('teacher_subjects')
+    .select('*, classes(class_name), subjects(subject_name)')
+    .eq('teacher_code', code);
+    
+    if(error) return subjectTable.innerHTML = `<tr><td colspan="3">Error: ${error.message}</td></tr>`;
+    
+    if(!data || data.length === 0){
+        subjectTable.innerHTML = '<tr><td colspan="3" style="text-align:center">No subjects assigned to this teacher</td></tr>';
+        return;
+    }
+    
+    subjectTable.innerHTML = data.map((r,i)=>`
+        <tr>
+            <td>${i+1}</td>
+            <td>${r.classes?.class_name || 'N/A'}</td>
+            <td>${r.subjects?.subject_name || 'N/A'}</td>
+        </tr>
+    `).join('');
+}
+loadTeachers();
+</script>
+</body>
+</html>

@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Class Register Students</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;font-family:'Segoe UI',Arial}
+body{background:linear-gradient(135deg,#2563eb 0%,#1e40af 100%);padding:15px;min-height:100vh}
+.card{background:white;border-radius:20px;padding:25px;box-shadow:0 10px 30px rgba(0,0,0,.2)}
+.header h2{color:#1e293b;font-size:22px;margin-bottom:10px}
+.class-badge{background:#dbeafe;color:#1e40af;padding:8px 15px;border-radius:20px;font-weight:600;display:inline-block;margin-bottom:15px}
+table{width:100%;border-collapse:collapse;border-radius:12px;overflow:hidden}
+thead{background:#2563eb;color:white}
+th{padding:14px 10px;text-align:left;font-weight:600}
+td{padding:14px 10px;border-bottom:1px solid #e2e8f0}
+tr:hover{background:#f8fafc}
+.student-count{color:#64748b;font-size:14px;margin-bottom:10px}
+</style>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script></head><body>
+<div class="card">
+    <div class="header"><h2>👨‍🎓 My Class Students</h2></div>
+    <div id="className"></div>
+    <div id="studentCount" class="student-count"></div>
+    <table><thead><tr><th style="width:60px">S/N</th><th>STUDENT NAME</th></tr></thead><tbody id="studentList"></tbody></table>
+</div>
+<script>
+const db = supabase.createClient('https://izhxzibsixhbsucfquyt.supabase.co','eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml6aHh6aWJzaXhoYnN1Y2ZxdXl0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODUzNzk0NTgsImV4cCI6MjEwMDk1NTQ1OH0.vnP0BhywqE0kt1zrxwq7uGeJ76EOowOHXi5CNyMGWUM')
+const teacherId = localStorage.getItem('teacherId');
+
+async function load(){
+    if(!teacherId) return document.getElementById('className').innerText = 'Please login first';
+    
+    let {data: myClass} = await db.from('class_registers').select('*').eq('teacher_id', teacherId).maybeSingle();
+    if(!myClass) return document.getElementById('className').innerText = 'No class assigned to you as Class Teacher';
+    
+    document.getElementById('className').innerHTML = `<span class="class-badge">Class: ${myClass.class_name}</span>`;
+    
+    let {data: students} = await db.from('students').select('*').eq('class_id', myClass.class_id).order('student_name');
+    
+    document.getElementById('studentCount').innerText = `Total: ${students.length} Students`;
+    
+    document.getElementById('studentList').innerHTML = students.map((s,i)=>`
+        <tr><td>${i+1}</td><td>${s.student_name}</td></tr>
+    `).join('');
+}
+load();
+</script></body></html>

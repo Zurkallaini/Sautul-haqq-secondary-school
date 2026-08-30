@@ -1,0 +1,709 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>School Admin Dashboard</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
+
+<style>
+    * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Poppins', 'Segoe UI', Arial, sans-serif; }
+    body { background: #f4f6f9; overflow-x: hidden; }
+
+.sidebar { position: fixed; left: -260px; top: 0; width: 260px; height: 100%; background: #1e3a8a; transition: 0.3s; z-index: 1000; padding-top: 20px; box-shadow: 2px 0 10px rgba(0,0,0,0.3); overflow-y: auto; }
+.sidebar.active { left: 0; }
+.sidebar h2 { padding:20px; color:#ffffff; font-size:20px; font-weight:700; text-align:center; border-bottom:1px solid #2563eb; margin-bottom: 10px; }
+.sidebar a { display: flex; align-items:center; padding: 14px 20px; color: #dbeafe; text-decoration: none; font-size: 15px; font-weight: 500; border-left: 3px solid transparent; cursor: pointer;}
+.sidebar a:hover,.sidebar a.active { background: #2563eb; color: #ffffff; border-left: 3px solid #fbbf24; }
+.sidebar a i { margin-right: 12px; font-size: 18px; width: 20px; text-align: center; }
+
+.overlay { display: none; position: fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.4); z-index:999; }
+.overlay.active { display: block; }
+
+.topbar { background: white; color: #333; padding: 15px 20px; display: flex; justify-content: center; align-items: center; position: sticky; top:0; z-index: 900; box-shadow: 0 2px 5px rgba(0,0,0,0.05);}
+.hamburger { font-size: 24px; cursor: pointer; background: none; border: none; color: #1e3a8a; position: absolute; left: 20px; }
+.topbar h2 { font-size: 18px; color: #1e3a8a; text-align: center; }
+
+.main { margin-left: 0; padding: 20px; transition: 0.3s; }
+
+.cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 15px; margin-bottom: 20px; }
+.card { background: white; border-radius: 12px; padding: 20px; display: flex; align-items: center; gap: 15px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+.card i { font-size: 28px; color: #2563eb; background: #eff6ff; padding: 15px; border-radius: 10px; }
+.card h3 { font-size: 14px; color: #64748b; font-weight: 500; }
+.card .count { font-size: 28px; font-weight: bold; color: #1e3a8a; }
+
+/* NORMAL BOX */
+.box { background: white; border-radius: 12px; padding: 20px; margin-bottom: 20px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); height: auto; overflow: visible; }
+.box h2 { margin-bottom: 15px; font-size: 18px; color: #1e3a8a; }
+
+/* ===== REMOVE BOX FOR PROBLEM PAGES ===== */
+/* This targets the blue/green inner containers in your screenshots */
+.box > div[style*="background"],
+.box > div:first-child {
+    background: transparent!important;
+    box-shadow: none!important;
+    border-radius: 0!important;
+    padding: 0!important;
+    height: auto!important;
+    max-height: none!important;
+    overflow: visible!important;
+}
+
+.table-wrapper { overflow-x: auto; width: 100%; -webkit-overflow-scrolling: touch; }
+table { width: 100%; border-collapse: collapse; font-size: 13px; min-width: 650px; }
+th, td { padding: 10px; text-align: center; border-bottom: 1px solid #e5e7eb; white-space: nowrap; }
+th { background: #2563eb; color: white; text-transform: uppercase; font-size: 11px; position: sticky; top: 0; }
+td.subject-cell span, td.class-cell span { display: inline-block; background:#eff6ff; padding:3px 8px; border-radius:5px; margin:2px; font-size:12px; color:#1e40af; font-weight:500 }
+.user-photo { width: 35px; height: 35px; border-radius: 50%; object-fit: cover; background: #e2e8f0; display: flex; align-items: center; justify-content: center; color: #64748b; margin: auto; overflow:hidden; }
+.user-photo img{width:100%;height:100%;border-radius:50%;object-fit:cover}
+.alert { padding: 10px; border-radius: 8px; margin-bottom: 10px; font-weight: 600; display: none; }
+.alert.success { background: #d1fae5; color: #065f46; }
+.alert.error { background: #fee2e2; color: #991b1b; }
+.btn-sm { padding: 6px 12px; border: none; border-radius: 6px; cursor: pointer; font-size: 12px; margin: 2px; color:white; font-weight:600; }
+.btn-del { background: #ef4444; }
+.btn-del:hover{background:#dc2626;}
+.btn-update { background: #2563eb; }
+.btn-update:hover{background:#1d4ed8;}
+.btn-green { background: #16a34a; }
+.modal { display: none; position: fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); backdrop-filter: blur(4px); justify-content:center; align-items:center; z-index:2000; padding: 15px;}
+.modal.active { display: flex; animation: fadeIn 0.3s; }
+@keyframes fadeIn { from{opacity:0;} to{opacity:1;} }
+.modal-content { background: white; padding: 25px; border-radius: 16px; width: 100%; max-width: 450px; box-shadow: 0 20px 50px rgba(0,0,0,0.3); animation: slideUp 0.3s ease; }
+@keyframes slideUp { from{transform:translateY(30px); opacity:0;} to{transform:translateY(0); opacity:1;} }
+.form-group { margin-bottom: 15px; }
+.form-group label { font-weight: 600; margin-bottom: 5px; display: block; font-size:13px; color:#475569; }
+.modal-content input,.modal-content select,.box input,.box select { width: 100%; padding: 12px; border: 1px solid #d1d5db; border-radius: 8px; margin-bottom: 10px; }
+.box input:focus,.box select:focus,.modal-content input:focus{border-color: #2563eb; box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1); outline: none;}
+.btn { padding: 12px 20px; background: #2563eb; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; width: 100%; font-size:15px; }
+.btn:hover{background:#1d4ed8;}
+.btn-group { display: flex; gap: 10px; }
+.photo-preview { width: 80px; height: 80px; border-radius: 8px; object-fit: cover; border: 1px solid #ddd; margin-bottom: 10px; display: none; }
+iframe.admin-frame{width:100%;height:auto;min-height:600px;border:none;border-radius:8px;display:block;}
+
+@media (min-width: 992px) {
+.main { margin-left: 260px; }
+.sidebar { left: 0; }
+.hamburger { display: none; }
+.overlay { display: none!important; }
+}
+</style>
+</head>
+<body style="visibility: hidden;">
+<div class="sidebar" id="sidebar">
+    <h2>ADMIN PANEL</h2>
+    <a href="#" onclick="showSection('dashboard', event)" class="active"><i class="fa-solid fa-chart-simple"></i> Dashboard</a>
+    <a href="#" onclick="showSection('userManagement', event)"><i class="fa-solid fa-users"></i> Users</a>
+    <a href="#" onclick="showSection('classes', event)"><i class="fa-solid fa-school"></i> Manage Classes</a>
+    <a href="#" onclick="showSection('subjects', event)"><i class="fa-solid fa-book"></i> Manage Subjects</a>
+    <a href="#" onclick="showSection('classSubjectsAssign', event)"><i class="fa-solid fa-book-open"></i> Assign Subject to Class</a>
+    <a href="#" onclick="showSection('classRegister', event)"><i class="fa-solid fa-clipboard"></i> Class Register</a>
+    <a href="#" onclick="showSection('teachers', event)"><i class="fa-solid fa-chalkboard-user"></i> Manage Teachers</a>
+    <a href="#" onclick="showSection('viewTeachers', event)"><i class="fa-solid fa-user-group"></i> View Teachers</a>
+    <a href="#" onclick="showSection('viewTeacherSubject', event)"><i class="fa-solid fa-book"></i> View Subject For Teacher</a>
+    <a href="#" onclick="showSection('students', event)"><i class="fa-solid fa-user-graduate"></i> Manage Students</a>
+    <a href="#" onclick="showSection('classStudents', event)"><i class="fa-solid fa-people-roof"></i> Students by Class</a>
+    <a href="#" onclick="showSection('viewMarks', event)"><i class="fa-solid fa-file-pen"></i> View Save Marks</a>
+    <a href="#" onclick="showSection('viewMarkSheet', event)"><i class="fa-solid fa-file-lines"></i> View MarkSheet File</a>
+    <a href="#" onclick="showSection('viewReportSheet', event)"><i class="fa-solid fa-file-lines"></i> View ReportSheet File</a>
+    <a href="#" onclick="showSection('broadSheetAdmin', event)"><i class="fa-solid fa-chart-bar"></i> BroadSheet</a>
+    <a href="#" onclick="showSection('overallYearAdmin', event)"><i class="fa-solid fa-chart-pie"></i> Overall Year Marks </a>
+    <a href="#" onclick="showSection('viewTeacherComment', event)"><i class="fa-solid fa-comment-dots"></i> Form Master Comment</a>
+    <a href="#" onclick="showSection('session', event)"><i class="fa-solid fa-gear"></i> Academic Session & Term</a>
+    <a href="#" onclick="logout()"><i class="fa-solid fa-right-from-bracket"></i> Logout</a>
+</div>
+<div class="overlay" id="overlay" onclick="toggleSidebar()"></div>
+
+<div class="main" id="main">
+    <div class="topbar">
+        <button class="hamburger" onclick="toggleSidebar()">☰</button>
+        <h2>School Admin Dashboard</h2>
+    </div>
+
+    <div id="alertBox" class="alert"></div>
+
+    <div id="dashboard">
+        <h1 style="color:#1e3a8a; margin-bottom:20px;">Dashboard</h1>
+        <div class="cards">
+            <div class="card"><i class="fa-solid fa-user-graduate"></i><div><h3>Total Students</h3><div class="count" id="totalStudents">0</div></div></div>
+            <div class="card"><i class="fa-solid fa-chalkboard-user"></i><div><h3>Total Teachers</h3><div class="count" id="totalTeachers">0</div></div></div>
+            <div class="card"><i class="fa-solid fa-school"></i><div><h3>Total Classes</h3><div class="count" id="totalClasses">0</div></div></div>
+            <div class="card"><i class="fa-solid fa-user-shield"></i><div><h3>Admins</h3><div class="count" id="totalAdmins">0</div></div></div>
+        </div>
+        <div class="box">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
+                <h2>User Management</h2>
+            </div>
+            <div class="table-wrapper">
+                <table><thead><tr><th>S/N</th><th>PHOTO</th><th>NAME</th><th>EMAIL ADDRESS</th><th>MOBILE</th><th>ROLE</th><th>ACTION</th></tr></thead>
+                <tbody id="userTable"><tr><td colspan="7">Loading...</td></tr></tbody></table>
+            </div>
+        </div>
+    </div>
+
+    <div id="userManagement" style="display:none">
+        <h1 style="color:#1e3a8a; margin-bottom:20px;">Enter User Management</h1>
+        <div class="box">
+            <div class="form-group"><label>Enter Name</label><input id="userName" placeholder="Enter Name"></div>
+            <div class="form-group"><label>Enter Email Address</label><input id="userEmail" type="email" placeholder="Enter Email Address"></div>
+            <div class="form-group"><label>Enter Mobile Number</label><input id="userMobile" placeholder="Enter Mobile Number"></div>
+            <div class="form-group"><label>Select Role</label>
+                <select id="userRole"><option>Select Role</option><option value="Admin">Admin</option><option value="Teacher">Teacher</option></select>
+            </div>
+            <div class="form-group"><label>Upload Photo</label><img id="photoPreview" class="photo-preview"><input type="file" id="userPhoto" accept="image/*" onchange="previewPhoto(event)"></div>
+            <div class="btn-group"><button class="btn btn-del" style="width:auto" onclick="removePhoto()">Remove Photo</button><button class="btn" id="userSaveBtn" style="width:auto" onclick="saveUser()">Save User</button></div>
+        </div>
+    </div>
+
+    <div id="classes" style="display:none" class="box"><h2>Manage Classes</h2><button class="btn" style="width:auto" onclick="openModal('classModal')">+ Add Class</button><div class="table-wrapper" style="margin-top:15px;"><table><thead><tr><th>S/N</th><th>CLASS NAME</th><th>ACTION</th></tr></thead><tbody id="classList"></tbody></table></div></div>
+    <div id="subjects" style="display:none" class="box"><h2>Manage Subjects</h2><input id="newSubjectName" placeholder="e.g. Mathematics"><button class="btn" onclick="saveSubject()">Save Subject</button><div class="table-wrapper" style="margin-top:15px;"><table><thead><tr><th>S/N</th><th>SUBJECT NAME</th><th>ACTION</th></tr></thead><tbody id="subjectList"></tbody></table></div></div>
+
+    <div id="classSubjectsAssign" style="display:none" class="box">
+        <h2>Assign Subject to Class</h2>
+        <select id="csClass"><option>Select Class</option></select>
+        <select id="csSubject"><option>Select Subject</option></select>
+        <button class="btn" onclick="saveClassSubject()">Assign Subject</button>
+        <div class="table-wrapper" style="margin-top:15px;"><table><thead><tr><th>S/N</th><th>CLASS</th><th>SUBJECT</th><th>ACTION</th></tr></thead><tbody id="csTable"></tbody></table></div>
+    </div>
+
+    <div id="classRegister" style="display:none" class="box">
+    <h2>Assign Class Register Teacher</h2>
+    <iframe class="admin-frame" src="AssignClassRegister.html"></iframe>
+</div>
+
+    <div id="teachers" style="display:none" class="box">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
+            <h2>Manage Teachers</h2>
+            <div style="display:flex; gap:10px;">
+                <button class="btn" style="width:auto" onclick="openModal('teacherModal')">+ Add Teacher</button>
+                <button class="btn btn-green" style="width:auto" onclick="openModal('assignTeacherModal')">Assign Subject</button>
+            </div>
+        </div>
+        <div class="table-wrapper"><table><thead><tr><th>S/N</th><th>NAME</th><th>CODE</th><th>CLASS(ES)</th><th>SUBJECT(S)</th><th>ACTION</th></tr></thead><tbody id="teacherList"></tbody></table></div>
+    </div>
+
+    <div id="viewTeachers" style="display:none" class="box"><h2>All Teachers</h2><div class="table-wrapper"><table><thead><tr><th>S/N</th><th>TEACHER NAME</th><th>TEACHER CODE</th></tr></thead><tbody id="allTeachersList"></tbody></table></div></div>
+    <div id="viewTeacherSubject" style="display:none" class="box"><h2>View Subject For Teacher</h2><select id="selectTeacherFilter" onchange="viewTeacherSubject()"><option>Select Teacher</option></select><div class="table-wrapper"><table><thead><tr><th>S/N</th><th>CLASS ASSIGNED</th><th>SUBJECT</th></tr></thead><tbody id="teacherSubjectList"></tbody></table></div></div>
+
+    <div id="students" style="display:none" class="box"><h2>Manage Students</h2><button class="btn" style="width:auto" onclick="openModal('studentModal')">+ Add Student</button><div class="table-wrapper" style="margin-top:15px;"><table><thead><tr><th>S/N</th><th>STUDENT NAME</th><th>CLASS</th><th>ACTION</th></tr></thead><tbody id="studentList"></tbody></table></div></div>
+    <div id="classStudents" style="display:none" class="box"><h2>View Students by Class</h2><select id="studentClassFilter" onchange="viewClassStudents()"><option>Select Class</option></select><div class="table-wrapper"><table><thead><tr><th>S/N</th><th>STUDENT NAME</th><th>ACTION</th></tr></thead><tbody id="classStudentList"></tbody></table></div></div>
+
+    <!-- THESE 4 NOW LOAD ADMIN VERSIONS THAT SHOW ALL CLASSES -->
+    <div id="viewMarks" style="display:none" class="box"><h2>View Save Marks</h2><iframe class="admin-frame" src="ViewSaveMarks_Admin.html"></iframe></div>
+    <div id="viewMarkSheet" style="display:none" class="box"><h2>View MarkSheet File</h2><iframe class="admin-frame" src="MarkSheet_Admin.html"></iframe></div>
+    <div id="viewReportSheet" style="display:none" class="box"><h2>View ReportSheet File</h2><iframe class="admin-frame" src="ReportSheet_Admin.html"></iframe></div>
+    <div id="viewTeacherComment" style="display:none" class="box"><h2>Teacher Comment & Attendance</h2><iframe class="admin-frame" src="TeacherComment_Admin.html"></iframe></div>
+    
+<div id="broadSheetAdmin" style="display:none" class="content-section box">
+    <h2><i class="fa-solid fa-chart-bar"></i> BroadSheet - Admin</h2>
+    <iframe class="admin-frame" src="BroadSheet_Admin.html" style="background: transparent;"></iframe>
+</div>
+    <div id="overallYearAdmin" style="display:none" class="content-section box">
+    <h2><i class="fa-solid fa-chart-pie"></i> Overall Year BroadSheet - Admin</h2>
+    <iframe class="admin-frame" src="OverallMarks.html" style="background: transparent;"></iframe>
+</div>
+    <div id="session" style="display:none" class="box">
+        <h2>Academic Session & Term Settings</h2>
+        <input id="newSession" placeholder="Add Session e.g 2025/2026">
+        <button class="btn" onclick="addSession()">Add Session</button>
+        <div id="sessionList" style="margin:10px 0;"></div>
+        <input id="newTerm" placeholder="Add Term e.g 1st Term" style="margin-top:10px;">
+        <button class="btn" onclick="addTerm()">Add Term</button>
+        <div id="termList" style="margin:10px 0;"></div>
+    </div>
+</div>
+
+<div class="modal" id="assignTeacherModal"><div class="modal-content"><h3>Assign Subject to Teacher</h3>
+    <div class="form-group"><label>Select Teacher</label><select id="assignTeacherSelect"></select></div>
+    <div class="form-group"><label>Select Class</label><select id="assignTeacherClass"></select></div>
+    <div class="form-group"><label>Select Subject</label><select id="assignTeacherSubject"></select></div>
+    <div class="btn-group"><button class="btn btn-green" onclick="assignSubjectToTeacher()">Assign</button><button class="btn btn-del" onclick="closeModal('assignTeacherModal')">Cancel</button></div>
+</div></div>
+
+<div class="modal" id="teacherModal"><div class="modal-content"><h3>Add Teacher</h3><input id="teacherName" placeholder="Teacher Name"><input id="teacherCode" placeholder="Teacher Code"><div class="btn-group"><button class="btn" onclick="saveTeacher()">Save</button><button class="btn btn-del" onclick="closeModal('teacherModal')">Cancel</button></div></div></div>
+<div class="modal" id="classModal"><div class="modal-content"><h3>Add Class</h3><input id="className" placeholder="Class Name"><div class="btn-group"><button class="btn" onclick="saveClass()">Save</button><button class="btn btn-del" onclick="closeModal('classModal')">Cancel</button></div></div></div>
+<div class="modal" id="studentModal"><div class="modal-content"><h3>Add Student</h3><input id="studentName" placeholder="Student Full Name"><select id="studentClass"></select><div class="btn-group"><button class="btn" onclick="saveStudent()">Save</button><button class="btn btn-del" onclick="closeModal('studentModal')">Cancel</button></div></div></div>
+<div id="editStudentModal" class="modal">
+    <div class="modal-content">
+        <span class="close" onclick="closeModal('editStudentModal')">&times;</span>
+        <h2>Update Student Name</h2>
+        <div class="form-group">
+            <label>New Name</label>
+            <input type="text" id="editStudentNameInput" placeholder="Enter new student name">
+        </div>
+        <button class="btn" onclick="saveEditedStudent()">Save Changes</button>
+    </div>
+</div>
+<script>
+const SUPABASE_URL = 'https://izhxzibsixhbsucfquyt.supabase.co'
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml6aHh6aWJzaXhoYnN1Y2ZxdXl0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODUzNzk0NTgsImV4cCI6MjEwMDk1NTQ1OH0.vnP0BhywqE0kt1zrxwq7uGeJ76EOowOHXi5CNyMGWUM'
+const db = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
+
+let currentPhotoBase64 = '';
+let classesData = []; let subjectsData = []; let teachersData = [];
+let studentsData = []; let usersData = []; let sessionsData = [];
+let termsData = []; let editUserId = null;
+
+// ========== FORCED SUBSCRIPTION SYSTEM ==========
+let CURRENT_TERM = ""; let AMOUNT_PER_STUDENT = 100;
+let BANK_NAME = ""; let ACCOUNT_NAME = ""; let ACCOUNT_NO = "";
+let TRIAL_ACTIVE = false; // NEW
+
+async function getSettings(){
+    let {data} = await db.from('app_settings').select('*').eq('id',1).single();
+    if(data){
+        CURRENT_TERM = data.current_term;
+        AMOUNT_PER_STUDENT = data.amount_per_student;
+        BANK_NAME = data.bank_name; ACCOUNT_NAME = data.account_name; ACCOUNT_NO = data.account_no;
+        TRIAL_ACTIVE = data.trial_active || false; // READ TRIAL STATUS
+        return TRIAL_ACTIVE;
+    }
+    return false;
+}
+
+async function checkSubscription(){
+    try {
+        const userRole = localStorage.getItem('userRole');
+        const isSuper = localStorage.getItem('isSuper');
+
+        const trialActive = await getSettings(); // Get trial first
+
+        // Super Admin always bypass
+        if(isSuper === 'true'){
+            document.body.style.visibility = 'visible';
+            await loadData();
+            updateTrialButtons(); // Show current trial status
+            return;
+        }
+
+        if(userRole!== 'Admin' && userRole!== 'Teacher'){
+            document.body.style.visibility = 'visible';
+            await loadData();
+            return;
+        }
+
+        let {data: subs} = await db.from('subscriptions')
+        .select('*')
+        .eq('term', CURRENT_TERM)
+        .order('created_at', {ascending: false})
+        .limit(1);
+
+        let sub = subs && subs.length > 0? subs[0] : null;
+
+        // UNLOCK IF TRIAL IS ON
+        if(trialActive === true){
+            document.body.style.visibility = 'visible';
+            await loadData();
+            return;
+        }
+
+        // UNLOCK IF PAID
+        if(sub && sub.status === 'paid'){
+            document.body.style.visibility = 'visible';
+            await loadData();
+            return;
+        }
+
+        // LOCK SCREEN IF TRIAL OFF AND NOT PAID
+        let {count} = await db.from('students').select('*', {count:'exact'});
+        let amount = (count || 0) * AMOUNT_PER_STUDENT;
+
+        document.body.style.visibility = 'visible';
+        document.body.style.overflow = 'hidden';
+        document.getElementById('subscriptionLock')?.remove();
+
+        document.body.insertAdjacentHTML('beforeend', `
+        <div id="subscriptionLock" style="position:fixed; top:0; left:0; width:100%; height:100%; background:linear-gradient(135deg, #1e3a8a 0%, #2563eb 100%); z-index:9999; display:flex; align-items:flex-start; justify-content:center; padding:20px; font-family:'Poppins', sans-serif; overflow-y:auto;">
+            <div style="max-width:480px; width:100%; background:#fff; padding:35px 30px; border-radius:20px; box-shadow:0 10px 40px rgba(0,0,0,0.25); text-align:center; border-top:5px solid #2563eb; margin:20px 0;">
+                <div style="width:60px; height:60px; background:#fee2e2; border-radius:50%; display:flex; align-items:center; justify-content:center; margin:0 auto 15px;">
+                    <i class="fa-solid fa-lock" style="font-size:28px; color:#dc2626;"></i>
+                </div>
+                <h2 style="color:#1e3a8a; margin-bottom:8px; font-size:24px; font-weight:700;">Dashboard Locked</h2>
+                <p style="color:#64748b; font-size:14px; margin-bottom:20px;">Free Trial Ended. Admin must pay to unlock Admin & Teacher Dashboard for ${CURRENT_TERM}</p>
+                <div style="background:#f1f5f9; padding:18px; border-radius:12px; margin-bottom:20px; text-align:left;">
+                    <p style="margin:6px 0; font-size:14px; color:#334155;"><b style="color:#1e3a8a;">Term:</b> ${CURRENT_TERM}</p>
+                    <p style="margin:6px 0; font-size:14px; color:#334155;"><b style="color:#1e3a8a;">Total Students:</b> ${count}</p>
+                    <p style="margin:6px 0; font-size:14px; color:#334155;"><b style="color:#1e3a8a;">Rate:</b> ₦${AMOUNT_PER_STUDENT.toLocaleString()} per student</p>
+                </div>
+                <div style="background:#dbeafe; padding:18px; border-radius:12px; margin-bottom:20px;">
+                    <h3 style="margin:0; color:#1e3a8a; font-size:22px; font-weight:700;">Total: ₦${amount.toLocaleString()}</h3>
+                </div>
+                <div style="background:#f8fafc; padding:15px; border-radius:10px; margin-bottom:20px; text-align:left; border-left:3px solid #2563eb;">
+                    <p style="margin:4px 0; font-size:13px; color:#334155;"><b style="color:#1e3a8a;">Bank:</b> ${BANK_NAME}</p>
+                    <p style="margin:4px 0; font-size:13px; color:#334155;"><b style="color:#1e3a8a;">Account Name:</b> ${ACCOUNT_NAME}</p>
+                    <p style="margin:4px 0; font-size:13px; color:#334155;"><b style="color:#1e3a8a;">Account No:</b> ${ACCOUNT_NO}</p>
+                </div>
+                <p style="color:#dc2626; font-size:12px; font-weight:600; margin:15px 0;">⚠️ Only Admin pays. Teacher access is automatic</p>
+                <div style="text-align:left; margin-bottom:15px;">
+                    <label style="font-size:12px; color:#475569; font-weight:600; display:block; margin-bottom:6px;">Upload Payment Proof</label>
+                    <input type="file" id="proof" accept="image/*,.pdf" style="width:100%; padding:10px; border:2px dashed #cbd5e1; border-radius:8px; background:#f8fafc; font-size:13px;">
+                </div>
+                <div style="text-align:left; margin-bottom:20px;">
+                    <label style="font-size:12px; color:#475569; font-weight:600; display:block; margin-bottom:6px;">Teller No / Transaction Ref</label>
+                    <input type="text" id="note" placeholder="Enter transaction reference" style="width:100%; padding:12px; border:1px solid #cbd5e1; border-radius:8px; font-size:14px;">
+                </div>
+                <button onclick="submitProof(${count}, ${amount})" style="background:linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%); color:#fff; padding:14px 20px; border:none; border-radius:10px; width:100%; cursor:pointer; font-size:15px; font-weight:700; margin-bottom:10px;">Submit Proof</button>
+                <button onclick="logout()" style="background:#f1f5f9; color:#ef4444; padding:12px 20px; border:1px solid #fecaca; border-radius:10px; width:100%; cursor:pointer; font-size:14px; font-weight:600;">Logout</button>
+            </div>
+        </div>`);
+    } catch(err) {
+        console.error("Subscription Check Error:", err);
+        document.body.style.visibility = 'visible';
+        await loadData();
+    }
+}
+
+// NEW: TOGGLE TRIAL ON
+async function giveTrial(){
+    if(!confirm("Give Free Trial? All Admin and Teachers will have access")) return;
+    await db.from('app_settings').update({trial_active: true}).eq('id',1);
+    showAlert('Free Trial Activated! Everyone can access now', 'success');
+    updateTrialButtons();
+}
+
+// NEW: TOGGLE TRIAL OFF / LOCK EVERYONE
+async function lockEveryone(){
+    if(!confirm("Lock Everyone? This will force Admin and Teachers to subscribe")) return;
+    await db.from('app_settings').update({trial_active: false}).eq('id',1);
+    showAlert('Everyone Locked! Admin must subscribe now', 'error');
+    updateTrialButtons();
+    location.reload(); // Reload to show lock screen immediately
+}
+
+// NEW: UPDATE BUTTON TEXT BASED ON STATUS
+async function updateTrialButtons(){
+    await getSettings();
+    const trialBtn = document.querySelector('button[onclick="giveTrial()"]');
+    const lockBtn = document.querySelector('button[onclick="lockEveryone()"]');
+    if(trialBtn && lockBtn){
+        if(TRIAL_ACTIVE){
+            trialBtn.innerHTML = '<i class="fa-solid fa-gift"></i> Trial: ACTIVE';
+            trialBtn.style.background = '#d1fae5';
+            trialBtn.style.color = '#065f46';
+            lockBtn.style.display = 'block';
+        }else{
+            trialBtn.innerHTML = '<i class="fa-solid fa-gift"></i> Give Free Trial';
+            trialBtn.style.background = '';
+            trialBtn.style.color = '';
+            lockBtn.style.display = 'none';
+        }
+    }
+}
+async function submitProof(count, amount){
+    const file = document.getElementById('proof').files[0]; const note = document.getElementById('note').value;
+    if(!file ||!note) return alert('Upload proof and enter teller no');
+    const {data: upload} = await db.storage.from('payment-proofs').upload(`term_${CURRENT_TERM}/${Date.now()}_${file.name}`, file);
+    const proofUrl = db.storage.from('payment-proofs').getPublicUrl(upload.path).data.publicUrl;
+    await db.from('subscriptions').insert({term: CURRENT_TERM, student_count: count, amount: amount, proof_url: proofUrl, payment_note: note, status: 'pending'});
+    alert('Proof submitted. Wait for Super Admin approval'); location.reload();
+}
+
+function toggleSidebar(){
+    document.getElementById('sidebar').classList.toggle('active');
+    document.getElementById('overlay').classList.toggle('active');
+    document.body.style.overflow = document.getElementById('sidebar').classList.contains('active')? 'hidden' : 'auto';
+}
+function showAlert(msg, type){ const box = document.getElementById('alertBox'); box.className = `alert ${type}`; box.innerText = msg; box.style.display = 'block'; setTimeout(() => box.style.display = 'none', 3000) }
+function showSection(id, e){
+    document.querySelectorAll('.main > div[id]').forEach(d => d.style.display = 'none');
+    document.getElementById(id).style.display = 'block';
+    document.querySelectorAll('.sidebar a').forEach(a => a.classList.remove('active'));
+    if(e) e.target.closest('a').classList.add('active');
+    if(window.innerWidth < 992) toggleSidebar();
+    setTimeout(resizeIframes, 500); // AUTO RESIZE IFRAMES
+}
+function openModal(id){ document.getElementById(id).classList.add('active'); loadDropdowns(); }
+function closeModal(id){ document.getElementById(id).classList.remove('active'); }
+function logout(){ localStorage.clear(); showAlert('Logout Successful', 'success'); setTimeout(()=>{ window.location.href = 'index.html'; }, 1000); }
+
+// AUTO RESIZE IFRAME TO FIT CONTENT
+function resizeIframes(){
+    document.querySelectorAll('iframe.admin-frame').forEach(iframe => {
+        iframe.onload = function(){
+            try {
+                let doc = iframe.contentDocument || iframe.contentWindow.document;
+                iframe.style.height = doc.body.scrollHeight + 100000 + 'px';
+            } catch(e){}
+        }
+    });
+}
+document.addEventListener('DOMContentLoaded', resizeIframes);
+function previewPhoto(event){
+    const file = event.target.files[0];
+    if(file){
+        const reader = new FileReader();
+        reader.onload = function(e){
+            currentPhotoBase64 = e.target.result;
+            document.getElementById('photoPreview').src = currentPhotoBase64;
+            document.getElementById('photoPreview').style.display = 'block';
+        }
+        reader.readAsDataURL(file);
+    }
+}
+function removePhoto(){ currentPhotoBase64 = ''; document.getElementById('userPhoto').value = ''; document.getElementById('photoPreview').style.display = 'none'; }
+
+async function saveUser(){ const name = document.getElementById('userName').value.trim(); const email = document.getElementById('userEmail').value.trim(); const mobile = document.getElementById('userMobile').value.trim(); const role = document.getElementById('userRole').value;
+    if(!name ||!email ||!mobile || role === 'Select Role') return showAlert('Please fill all fields', 'error');
+    const { data: existing } = await db.from('users').select('*');
+    if(existing.some(u => u.name.toLowerCase() === name.toLowerCase())) return showAlert('User name already exist', 'error');
+    if(existing.some(u => u.email.toLowerCase() === email.toLowerCase())) return showAlert('Email already exist', 'error');
+    if(existing.some(u => u.mobile === mobile)) return showAlert('Mobile already exist', 'error');
+    const { error } = await db.from('users').insert({ name, email, mobile, role, photo: currentPhotoBase64 });
+    if(error) return showAlert(error.message, 'error');
+    showAlert('User Saved Successfully', 'success');
+    document.getElementById('userName').value = ''; document.getElementById('userEmail').value = ''; document.getElementById('userMobile').value = ''; document.getElementById('userRole').value = 'Select Role'; removePhoto(); loadData();
+}
+
+async function editUser(id){ editUserId = id;
+    const u = usersData.find(x=>x.id==id);
+    document.getElementById('userName').value = u.name;
+    document.getElementById('userEmail').value = u.email;
+    document.getElementById('userMobile').value = u.mobile;
+    document.getElementById('userRole').value = u.role;
+    if(u.photo){ currentPhotoBase64 = u.photo; document.getElementById('photoPreview').src = u.photo; document.getElementById('photoPreview').style.display = 'block'; }
+    showSection('userManagement');
+    document.getElementById('userSaveBtn').innerText = 'Update User';
+    document.getElementById('userSaveBtn').setAttribute('onclick','updateUser()');
+}
+
+async function updateUser(){ const name = document.getElementById('userName').value.trim();
+    const email = document.getElementById('userEmail').value.trim();
+    const mobile = document.getElementById('userMobile').value.trim();
+    const role = document.getElementById('userRole').value;
+    if(!name ||!email ||!mobile || role === 'Select Role') return showAlert('Please fill all fields', 'error');
+    const { error } = await db.from('users').update({ name, email, mobile, role, photo: currentPhotoBase64 }).eq('id', editUserId);
+    if(error) return showAlert(error.message, 'error');
+    showAlert('User Updated Successfully', 'success');
+    document.getElementById('userName').value = ''; document.getElementById('userEmail').value = ''; document.getElementById('userMobile').value = ''; document.getElementById('userRole').value = 'Select Role'; removePhoto();
+    document.getElementById('userSaveBtn').innerText = 'Save User';
+    document.getElementById('userSaveBtn').setAttribute('onclick','saveUser()');
+    editUserId = null; loadData();
+}
+
+async function deleteUser(id){ if(confirm('Delete this user?')){ await db.from('users').delete().eq('id', id); showAlert('Deleted', 'success'); await loadData(); }}
+async function saveClass(){ const name = document.getElementById('className').value.trim();
+    if(!name) return showAlert('Enter class name', 'error');
+    if(classesData.some(c => c.class_name.toLowerCase() === name.toLowerCase())) return showAlert('Class already exist', 'error');
+    await db.from('classes').insert({class_name:name});
+    showAlert('Saved', 'success'); closeModal('classModal'); document.getElementById('className').value=''; await loadData();
+}
+async function deleteClass(id){ if(confirm('Delete?')){ await db.from('classes').delete().eq('id',id); showAlert('Deleted', 'success'); await loadData(); }}
+async function saveSubject(){ const name = document.getElementById('newSubjectName').value.trim();
+    if(!name) return showAlert('Enter subject name', 'error');
+    if(subjectsData.some(s => s.subject_name.toLowerCase() === name.toLowerCase())) return showAlert('Subject already exist', 'error');
+    await db.from('subjects').insert({subject_name:name});
+    showAlert('Saved', 'success'); document.getElementById('newSubjectName').value = ''; await loadData();
+}
+async function deleteSubject(id){ if(confirm('Delete?')){ await db.from('subjects').delete().eq('id',id); showAlert('Deleted', 'success'); await loadData(); }}
+async function saveStudent(){ const name = document.getElementById('studentName').value.trim();
+    const classId = document.getElementById('studentClass').value;
+    if(!name || classId === 'Select Class') return showAlert('Fill all', 'error');
+    const cls = classesData.find(c=>c.id==classId);
+    if(studentsData.some(s => s.student_name.toLowerCase() === name.toLowerCase() && s.class_id == classId)) return showAlert('Student name already exist in the class', 'error');
+    await db.from('students').insert({student_name:name, class_id:classId, class_name:cls.class_name});
+    showAlert('Saved', 'success'); closeModal('studentModal'); document.getElementById('studentName').value=''; await loadData();
+}
+async function deleteStudent(id){ if(confirm('Delete?')){ await db.from('students').delete().eq('id',id); showAlert('Deleted', 'success'); await loadData(); }}
+async function saveTeacher(){ const name = document.getElementById('teacherName').value.trim();
+    const code = document.getElementById('teacherCode').value.trim();
+    if(!name ||!code) return showAlert('Fill all', 'error');
+    const { data: existing } = await db.from('teachers').select('*');
+    if(existing.some(t => t.teacher_name.toLowerCase() === name.toLowerCase())) return showAlert('Teacher name already exist', 'error');
+    if(existing.some(t => t.teacher_code.toLowerCase() === code.toLowerCase())) return showAlert('Teacher code already exist', 'error');
+    const { error } = await db.from('teachers').insert({teacher_name:name, teacher_code:code});
+    if(error) return showAlert(error.message, 'error');
+    showAlert('Saved', 'success'); closeModal('teacherModal'); document.getElementById('teacherName').value=''; document.getElementById('teacherCode').value=''; await loadData();
+}
+async function assignSubjectToTeacher(){ const tCode = document.getElementById('assignTeacherSelect').value;
+    const cId = document.getElementById('assignTeacherClass').value;
+    const sId = document.getElementById('assignTeacherSubject').value;
+    if(tCode === 'Select Teacher' || cId === 'Select Class' || sId === 'Select Subject') return showAlert('Select all', 'error');
+    const t = teachersData.find(x=>x.teacher_code==tCode);
+    const c = classesData.find(x=>x.id==cId);
+    const s = subjectsData.find(x=>x.id==sId);
+    const { data: existing } = await db.from('teacher_subjects').select('*').eq('teacher_code', tCode).eq('class_id', cId).eq('subject_id', sId);
+    if(existing.length > 0) return showAlert(`Subject already assigned`, 'error');
+    const { error } = await db.from('teacher_subjects').insert({teacher_id:tCode, teacher_name:t.teacher_name, teacher_code:t.teacher_code, class_id:cId, class_name:c.class_name, subject_id:sId, subject_name:s.subject_name});
+    if(error) return showAlert(error.message, 'error');
+    showAlert('Assigned Successfully', 'success'); closeModal('assignTeacherModal'); loadTeachers();
+}
+async function loadDropdowns(){ let teacherOptions = teachersData.map(t => `<option value="${t.teacher_code}">${t.teacher_name}</option>`).join('');
+    let classOptions = classesData.map(c => `<option value="${c.id}">${c.class_name}</option>`).join('');
+    let subjectOptions = subjectsData.map(s => `<option value="${s.id}">${s.subject_name}</option>`).join('');
+    if(document.getElementById('assignTeacherSelect')) document.getElementById('assignTeacherSelect').innerHTML = '<option>Select Teacher</option>' + teacherOptions;
+    if(document.getElementById('assignTeacherClass')) document.getElementById('assignTeacherClass').innerHTML = '<option>Select Class</option>' + classOptions;
+    if(document.getElementById('assignTeacherSubject')) document.getElementById('assignTeacherSubject').innerHTML = '<option>Select Subject</option>' + subjectOptions;
+    if(document.getElementById('csClass')) document.getElementById('csClass').innerHTML = '<option>Select Class</option>' + classOptions;
+    if(document.getElementById('csSubject')) document.getElementById('csSubject').innerHTML = '<option>Select Subject</option>' + subjectOptions;
+}
+async function loadTeachers(){ const { data: teacherSubjects } = await db.from('teacher_subjects').select('*');
+    if(!teacherSubjects || teacherSubjects.length === 0) { document.getElementById('teacherList').innerHTML = '<tr><td colspan="6">No teachers assigned</td></tr>'; return; }
+    let grouped = {};
+    teacherSubjects.forEach(ts => {
+        let key = ts.teacher_name + '|' + ts.teacher_code;
+        if(!grouped[key]) grouped[key] = { name: ts.teacher_name, code: ts.teacher_code, classes: [], subjects: [] };
+        if(ts.class_name &&!grouped[key].classes.includes(ts.class_name)) grouped[key].classes.push(ts.class_name);
+        if(ts.subject_name &&!grouped[key].subjects.includes(ts.subject_name)) grouped[key].subjects.push(ts.subject_name);
+    });
+    let html = Object.values(grouped).map((t,i) => {
+        let classHtml = t.classes.map(c=>`<span>${c}</span>`).join('');
+        let subjectHtml = t.subjects.map(s=>`<span>${s}</span>`).join('');
+        return `<tr><td>${i+1}</td><td>${t.name}</td><td>${t.code}</td><td class="class-cell">${classHtml}</td><td class="subject-cell">${subjectHtml}</td><td><button class="btn-sm btn-del" onclick="deleteTeacherAssignments('${t.code}')">Delete</button></td></tr>`
+    }).join('');
+    document.getElementById('teacherList').innerHTML = html;
+}
+async function deleteTeacherAssignments(code){ if(confirm('Delete all assignments for this teacher?')){ await db.from('teacher_subjects').delete().eq('teacher_code',code); showAlert('Deleted', 'success'); await loadTeachers(); }}
+async function loadClassSubjectsAssign(){ 
+    const {data:cs} = await db.from('class_subjects').select('*')
+    document.getElementById('csTable').innerHTML = cs.map((c,i)=>`<tr><td>${i+1}</td><td>${c.class_name}</td><td>${c.subject_name}</td><td><button class="btn-sm btn-del" onclick="delCS(${c.id})">Delete</button></td></tr>`).join('') || '<tr><td colspan="4">No data</td></tr>'
+}
+async function delCS(id){ await db.from('class_subjects').delete().eq('id',id); loadClassSubjectsAssign(); }
+// FIX 1: SAVE CLASS SUBJECT - THIS WAS MISSING
+async function saveClassSubject(){
+    const cId = document.getElementById('csClass').value;
+    const sId = document.getElementById('csSubject').value;
+    if(cId === 'Select Class' || sId === 'Select Subject') return showAlert('Select both', 'error');
+    const c = classesData.find(x=>x.id==cId);
+    const s = subjectsData.find(x=>x.id==sId);
+    const { data: existing } = await db.from('class_subjects').select('*').eq('class_id', cId).eq('subject_id', sId);
+    if(existing.length > 0) return showAlert('Subject already assigned to this class', 'error');
+    await db.from('class_subjects').insert({class_id:cId, class_name:c.class_name, subject_id:sId, subject_name:s.subject_name});
+    showAlert('Assigned Successfully', 'success');
+    document.getElementById('csClass').value = 'Select Class';
+    document.getElementById('csSubject').value = 'Select Subject';
+    loadClassSubjectsAssign();
+}
+
+// FIX 2: VIEW SUBJECT FOR TEACHER
+async function viewTeacherSubject(){
+    const code = document.getElementById('selectTeacherFilter').value;
+    if(code === 'Select Teacher') return;
+    const {data: ts} = await db.from('teacher_subjects').select('*').eq('teacher_code', code);
+    document.getElementById('teacherSubjectList').innerHTML = ts.map((t,i)=>`
+        <tr><td>${i+1}</td><td>${t.class_name}</td><td>${t.subject_name}</td></tr>
+    `).join('') || '<tr><td colspan="3">No subject assigned</td></tr>';
+}
+
+// FIX 3: VIEW STUDENTS BY CLASS WITH UPDATE/DELETE
+async function viewClassStudents(){
+    const classId = document.getElementById('studentClassFilter').value;
+    if(classId === 'Select Class') return;
+    const filtered = studentsData.filter(s => s.class_id == classId);
+    document.getElementById('classStudentList').innerHTML = filtered.map((s,i)=>`
+        <tr>
+            <td>${i+1}</td>
+            <td>${s.student_name}</td>
+            <td>
+                <button class="btn-sm btn-update" onclick="editStudent(${s.id})">Update</button>
+                <button class="btn-sm btn-del" onclick="deleteStudent(${s.id})">Delete</button>
+            </td>
+        </tr>
+    `).join('') || '<tr><td colspan="3">No students</td></tr>';
+}
+
+// FIX 4: EDIT STUDENT NAME
+let editStudentId = null;
+
+function openModal(id){ document.getElementById(id).classList.add('active'); }
+function closeModal(id){ document.getElementById(id).classList.remove('active'); }
+
+function editStudent(id){
+    editStudentId = id;
+    const s = studentsData.find(x=>x.id==id);
+    document.getElementById('editStudentNameInput').value = s.student_name;
+    openModal('editStudentModal');
+}
+
+async function saveEditedStudent(){
+    const newName = document.getElementById('editStudentNameInput').value.trim();
+    if(!newName) return showAlert('Please enter a name', 'error');
+    
+    const {error} = await db.from('students').update({student_name: newName}).eq('id', editStudentId);
+    if(error) return showAlert(error.message, 'error');
+    
+    showAlert('Student Updated Successfully', 'success');
+    closeModal('editStudentModal');
+    await loadData();
+    viewClassStudents();
+}
+
+// Close modal when clicking outside
+document.querySelectorAll('.modal').forEach(modal => {
+    modal.addEventListener('click', (e) => {
+        if(e.target === modal) closeModal(modal.id);
+    });
+});
+async function loadData(){
+    const { data: classes } = await db.from('classes').select('*')
+    const { data: subjects } = await db.from('subjects').select('*')
+    const { data: teachers } = await db.from('teachers').select('*')
+    const { data: students } = await db.from('students').select('*')
+    const { data: users } = await db.from('users').select('*')
+    const { data: sessions } = await db.from('sessions').select('*')
+    const { data: terms } = await db.from('terms').select('*')
+
+    classesData = classes || []; subjectsData = subjects || []; teachersData = teachers || [];
+    studentsData = students || []; usersData = users || []; sessionsData = sessions || []; termsData = terms || [];
+
+    document.getElementById('totalStudents').innerText = studentsData.length;
+    document.getElementById('totalTeachers').innerText = teachersData.length;
+    document.getElementById('totalClasses').innerText = classesData.length;
+    document.getElementById('totalAdmins').innerText = usersData.filter(u => u.role === 'Admin').length;
+
+    let userHtml = usersData.map((u,i) => {
+        let photoHtml = u.photo? `<div class="user-photo"><img src="${u.photo}"></div>` : `<div class="user-photo"><i class="fa-solid fa-user"></i></div>`;
+        return `<tr><td>${i+1}</td><td>${photoHtml}</td><td>${u.name}</td><td>${u.email}</td><td>${u.mobile}</td><td>${u.role}</td><td><button class="btn-sm btn-update" onclick="editUser(${u.id})">Update</button> <button class="btn-sm btn-del" onclick="deleteUser(${u.id})">Delete</button></td></tr>`
+    }).join('') || '<tr><td colspan="7">No users yet</td></tr>';
+    document.getElementById('userTable').innerHTML = userHtml;
+
+    document.getElementById('classList').innerHTML = classesData.map((c,i) => `<tr><td>${i+1}</td><td>${c.class_name}</td><td><button class="btn-sm btn-del" onclick="deleteClass(${c.id})">Delete</button></td></tr>`).join('') || '<tr><td colspan="3">No classes</td></tr>';
+    document.getElementById('subjectList').innerHTML = subjectsData.map((s,i) => `<tr><td>${i+1}</td><td>${s.subject_name}</td><td><button class="btn-sm btn-del" onclick="deleteSubject(${s.id})">Delete</button></td></tr>`).join('') || '<tr><td colspan="3">No subjects</td></tr>';
+    document.getElementById('allTeachersList').innerHTML = teachersData.map((t,i) => `<tr><td>${i+1}</td><td>${t.teacher_name}</td><td>${t.teacher_code}</td></tr>`).join('') || '<tr><td colspan="3">No teachers</td></tr>';
+
+    let classOptions = classesData.map(c => `<option value="${c.id}">${c.class_name}</option>`).join('');
+    if(document.getElementById('studentClass')) document.getElementById('studentClass').innerHTML = '<option>Select Class</option>' + classOptions;
+    if(document.getElementById('studentClassFilter')) document.getElementById('studentClassFilter').innerHTML = '<option>Select Class</option>' + classOptions;
+    document.getElementById('studentList').innerHTML = studentsData.map((s,i) => `<tr><td>${i+1}</td><td>${s.student_name}</td><td>${s.class_name}</td><td><button class="btn-sm btn-del" onclick="deleteStudent(${s.id})">Delete</button></td></tr>`).join('') || '<tr><td colspan="4">No students</td></tr>';
+
+    let teacherCodeOptions = teachersData.map(t => `<option value="${t.teacher_code}">${t.teacher_name}</option>`).join('');
+    if(document.getElementById('selectTeacherFilter')) document.getElementById('selectTeacherFilter').innerHTML = '<option>Select Teacher</option>' + teacherCodeOptions;
+
+    let sessionHtml = sessionsData.map((s,i) => `<p>${i+1}. ${s.session_name}</p>`).join('') || '<p>No session added</p>';
+    let termHtml = termsData.map((t,i) => `<p>${i+1}. ${t.term_name}</p>`).join('') || '<p>No term added</p>';
+    if(document.getElementById('sessionList')) document.getElementById('sessionList').innerHTML = sessionHtml;
+    if(document.getElementById('termList')) document.getElementById('termList').innerHTML = termHtml;
+
+    loadTeachers(); loadDropdowns(); loadClassSubjectsAssign();
+    if(document.getElementById('classRegister').style.display=='block') loadReg();
+    if(document.getElementById('classSubjectsAssign').style.display=='block') loadClassSubjectsAssign();
+}
+
+async function addSession(){ 
+    const name = document.getElementById('newSession').value.trim();
+    if(!name) return showAlert('Enter session', 'error');
+    if(sessionsData.some(s=>s.session_name.toLowerCase()===name.toLowerCase())) return showAlert('Session already exist','error');
+    await db.from('sessions').insert({session_name:name});
+    document.getElementById('newSession').value='';
+    showAlert('Session Added','success'); loadData();
+}
+
+async function addTerm(){ 
+    const name = document.getElementById('newTerm').value.trim();
+    if(!name) return showAlert('Enter term', 'error');
+    if(termsData.some(t=>t.term_name.toLowerCase()===name.toLowerCase())) return showAlert('Term already exist','error');
+    await db.from('terms').insert({term_name:name});
+    document.getElementById('newTerm').value='';
+    showAlert('Term Added','success'); loadData();
+}
+
+function loadReg(){ /* your register logic */ }
+
+// RUN CHECK ON EVERY REFRESH
+window.addEventListener('load', async function(){
+    await checkSubscription();
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sautul-Haqq School - Admin Report Sheet</title>
+<script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Times+New-Roman&display=swap');
+    * {box-sizing: border-box;margin: 0;padding: 0;}
+  body {font-family: 'Times New Roman', Times, serif;background: #f0f0f0;padding: 10px;}
+.top-bar {background:#1a5f2a;color:#fff;padding:12px;display:flex;gap:10px;flex-wrap:wrap;justify-content:center;margin-bottom:20px;border-radius:8px;position:sticky;top:0;z-index:10}
+.top-bar select,.top-bar button {padding:10px;border:none;border-radius:6px;font-size:14px;font-family:inherit}
+.top-bar button {background:#fff;color:#1a5f2a;font-weight:bold;cursor:pointer}
+.top-bar button.save {background:#ff9800;color:#fff}
+.report-sheet {width: 210mm;min-width: 210mm;min-height: 297mm;background: white;padding: 25px 30px;box-shadow: 0 0 15px rgba(0,0,0,0.15);margin: 20px auto;page-break-after: always;}
+.header {text-align: center;margin-bottom: 12px;}
+.logo {width: 90px;height: 90px;border-radius: 50%;margin:0 auto 6px;overflow:hidden}
+.logo img {width: 100%;height: 100%;object-fit: contain;}
+  h1 {font-size: 22px;font-weight: bold;margin: 10px 0 4px;text-transform: uppercase;}
+.address {font-size: 12px;line-height: 1.35;margin-bottom: 8px;}
+.title {font-size: 16px;font-weight: bold;text-transform: uppercase;margin: 12px 0 18px;text-decoration: underline;}
+.info-row {display: flex;align-items: center;margin-bottom: 12px;font-size: 14px;}
+.info-row label {font-weight: bold;white-space: nowrap;}
+.underline-input {border: none;border-bottom: 1.5px solid #333;background: transparent;outline: none;font-family: inherit;font-size: 14px;padding: 2px 10px;flex:1;text-align:left}
+.class-row {display: flex;justify-content: space-between;align-items: center;margin-bottom: 12px;font-size: 14px;width: 100%;}
+.class-row.group {display: flex;align-items: center;gap: 6px;flex:1}
+.position-value {border-bottom:1.5px solid #333;padding:2px 10px;min-width:40px;display:inline-block}
+  table {width: 100%;border-collapse: collapse;margin: 15px 0 8px;font-size: 12px;}
+  th, td {border: 1.5px solid #222;padding: 4px 2px;text-align: center;}
+  th {background: #f5f5f5;font-weight: bold;font-size: 10px;}
+.subject-col {text-align: left;width: 100px;padding-left:4px}
+.total-row td {font-weight: bold;background: #fafafa;}
+.comments {margin-top: 18px;font-size: 14px;width:100%}
+.comment-line {display: flex;align-items: center;margin-bottom: 14px;width:100%}
+.comment-line label {font-weight: bold;white-space: nowrap;margin-right: 6px;width:170px}
+.comment-line input {flex: 1}
+.dates-row {display: flex;justify-content: space-between;align-items: center;margin-top: 14px;width: 100%;}
+.dates-row.group {display: flex;align-items: center;gap: 6px;flex:1}
+.dates-row input {width: 100px;}
+.signatures {display: flex;justify-content: space-between;margin-top: 35px;padding: 0 10px;}
+.sig-box {text-align: center;width: 180px;}
+.sig-area {width: 180px;height: 70px;border: 2px solid #333;display: flex;align-items: center;justify-content: center;background: #fafafa;overflow:hidden;position:relative}
+.sig-area img {width:100%;height:100%;object-fit:fill}
+.sig-buttons {margin-top:6px;display:flex;gap:5px;justify-content:center}
+.sig-buttons button {font-size:10px;padding:2px 6px}
+sup {vertical-align: super;font-size: 9px;}
+  @media print {.top-bar{display:none} body{background:white}.sig-buttons{display:none}}
+</style>
+</head>
+<body>
+
+<div class="top-bar">
+  <select id="classSelect"><option value="">Loading...</option></select>
+  <select id="termSelect"><option value="">Select Term</option></select>
+  <select id="sessionSelect"><option value="">Select Session</option></select>
+  <button onclick="loadAllReports()">Load All Reports</button>
+  <button class="save" onclick="saveAll()">Save All</button>
+  <button onclick="window.print()">Print All</button>
+</div>
+
+<div id="allReportsContainer">Select Term, Session then click Load All Reports</div>
+
+<script>
+const SUPABASE_URL="https://izhxzibsixhbsucfquyt.supabase.co";
+const SUPABASE_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml6aHh6aWJzaXhoYnN1Y2ZxdXl0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODUzNzk0NTgsImV4cCI6MjEwMDk1NTQ1OH0.vnP0BhywqE0kt1zrxwq7uGeJ76EOowOHXi5CNyMGWUM";
+const db=supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
+
+let currentClassId = "", currentClassName = "", currentTermId = "", currentSessionId = "", studentsList = [];
+
+loadDropdowns();
+
+async function loadDropdowns(){
+  const classSelect=document.getElementById("classSelect");
+  const termSelect=document.getElementById("termSelect");
+  const sessionSelect=document.getElementById("sessionSelect");
+
+  // ADMIN: LOAD ALL CLASSES
+  const {data:classes} = await db.from("classes").select("id, class_name").order("class_name");
+  classSelect.innerHTML = `<option value="">Select Class</option>`;
+  classes.forEach(c=>{classSelect.innerHTML+=`<option value="${c.id}">${c.class_name}</option>`;});
+
+  const {data:terms} = await db.from("terms").select("*").order("id");
+  terms.forEach(t=>{termSelect.innerHTML+=`<option value="${t.id}">${t.term_name}</option>`});
+  const {data:sessions} = await db.from("sessions").select("*").order("id");
+  sessions.forEach(s=>{sessionSelect.innerHTML+=`<option value="${s.id}">${s.session_name}</option>`});
+}
+
+function getGrade(total){total = parseInt(total) || 0; if(total >= 70) return "A"; if(total >= 60) return "B"; if(total >= 50) return "C"; if(total >= 45) return "D"; if(total >= 40) return "E"; return "F";}
+function getRemark(grade){const remarks={A:"Excellent",B:"Very Good",C:"Good",D:"Fair",E:"Pass",F:"Fail"};return remarks[grade] || "";}
+function getPrincipalComment(total){total = parseInt(total) || 0; if(total >= 900) return "Excellent performance keep it up"; if(total >= 700) return "A very good Performance keep it up"; if(total >= 600) return "Good performance put in more effort"; if(total >= 500) return "Fair performance, you need to work harder"; if(total >= 400) return "Poor performance, you need to work harder and catch up"; return "Very poor performance, you need to work harder and catch up";}
+function getPositionSuffix(pos){if(!pos) return "";const j = pos % 10, k = pos % 100;if (j == 1 && k!= 11) return `${pos}<sup>st</sup>`;if (j == 2 && k!= 12) return `${pos}<sup>nd</sup>`;if (j == 3 && k!= 13) return `${pos}<sup>rd</sup>`;return `${pos}<sup>th</sup>`;}
+function calculatePositions(studentsTotals){studentsTotals.sort((a,b)=>b.total-a.total);let position = 1;for(let i=0; i<studentsTotals.length; i++){if(i>0 && studentsTotals[i].total < studentsTotals[i-1].total){position = i+1;}studentsTotals[i].position = position;}return studentsTotals;}
+function uploadSignature(input, type) {const file = input.files[0];if (file) {const reader = new FileReader();reader.onload = function(e) {document.querySelectorAll(`.${type}-sig-img`).forEach(img=>{img.src = e.target.result;});localStorage.setItem(`${currentClassId}_${currentTermId}_${currentSessionId}_${type}`, e.target.result);};reader.readAsDataURL(file);}}
+function removeSignature(type){document.querySelectorAll(`.${type}-sig-img`).forEach(img=>{img.src = "";});localStorage.removeItem(`${currentClassId}_${currentTermId}_${currentSessionId}_${type}`);}
+
+async function loadAllReports(){
+  currentClassId=document.getElementById("classSelect").value;
+  currentClassName = document.getElementById("classSelect").options[document.getElementById("classSelect").selectedIndex].text;
+  currentTermId=document.getElementById("termSelect").value;
+  currentSessionId=document.getElementById("sessionSelect").value;
+  const termName = document.getElementById("termSelect").options[document.getElementById("termSelect").selectedIndex].text;
+  const sessionName = document.getElementById("sessionSelect").options[document.getElementById("sessionSelect").selectedIndex].text;
+
+  if(!currentClassId||!currentTermId||!currentSessionId){alert("Select Class, Term and Session");return;}
+  document.getElementById("allReportsContainer").innerHTML = "Loading...";
+
+  const {data:students} = await db.from("students").select("*").eq("class_id", currentClassId).order("student_name");
+  const {data:subjects} = await db.from("class_subjects").select("*").eq("class_name", currentClassName);
+  studentsList = students;
+  const studentIds = students.map(s=>s.id);
+
+  const {data:allResults} = await db.from("results").select("*").in("student_id", studentIds).eq("class_id", currentClassId).eq("term_id", currentTermId).eq("session_id", currentSessionId);
+  const {data:allComments} = await db.from("student_comments").select("*").eq("class_name",currentClassName).eq("term_id",currentTermId).eq("session_id",currentSessionId);
+
+  let studentsTotals = students.map(s=>{const res = allResults.filter(r=> r.student_id == s.id );const total = res.reduce((sum,r)=>sum + (parseInt(r.total)|| (parseInt(r.ca1)||0)+(parseInt(r.ca2)||0)+(parseInt(r.exam)||0) ),0);return {id:s.id, total:total};});
+  studentsTotals = calculatePositions(studentsTotals);
+  const classTotalSum = studentsTotals.reduce((sum,s)=>sum+s.total,0);
+  const classAverage = students.length? (classTotalSum / students.length).toFixed(2) : 0;
+
+  const principalSig = localStorage.getItem(`${currentClassId}_${currentTermId}_${currentSessionId}_principal`);
+  const masterSig = localStorage.getItem(`${currentClassId}_${currentTermId}_${currentSessionId}_master`);
+
+  let allHTML = "";
+  for(let student of students){
+    const studentResults = allResults.filter(r=> r.student_id == student.id );
+    const studentComment = allComments?.find(c=>c.student_id==student.id);
+    const studentPos = studentsTotals.find(s=>s.id==student.id)?.position || "";
+    const studentTotal = studentsTotals.find(s=>s.id==student.id)?.total || 0;
+    let bodyHTML=""; let overallTotal=0;
+
+    subjects.forEach((sub,index)=>{
+      const res = studentResults.find(r=> r.subject_id == sub.subject_id );
+      const ca1=res? (res.ca1||0) : 0; const ca2=res? (res.ca2||0) : 0; const exam=res? (res.exam||0) : 0;
+      const total=res? (res.total||ca1+ca2+exam) : 0;
+      overallTotal+=parseInt(total); const grade = getGrade(total);
+      bodyHTML+=`<tr><td>${index+1}</td><td class="subject-col">${sub.subject_name}</td><td>${ca1||''}</td><td>${ca2||''}</td><td>${exam||''}</td><td><b>${total||''}</b></td><td><b>${grade}</b></td><td>${getRemark(grade)}</td></tr>`;
+    });
+
+    bodyHTML+=`<tr class="total-row"><td colspan="2">OVERALL TOTAL</td><td colspan="3"><b>${overallTotal}</b></td><td colspan="3">CLASS AVERAGE <b>${classAverage}</b></td></tr>`;
+
+    allHTML += `<div class="report-sheet"><div class="header"><div class="logo"><img src="my-logo.png"></div><h1>SAUTUL-HAQQ-SCHOOLS</h1><div class="address">NO 14 THIRD AVENUE FEDERAL HOUSING ESTATE<br>SAMBO, SOKOTO STATE</div><div class="title">END OF TERM EXAMINATION REPORTSHEET</div></div>
+      <div class="info-row"><label>STUDENT'S NAME:</label><input type="text" value="${student.student_name}" class="underline-input" readonly></div>
+      <div class="class-row"><div class="group"><label>CLASS :</label><input type="text" value="${currentClassName}" class="underline-input" readonly></div><div class="group"><label>POSITION:</label><span class="position-value">${getPositionSuffix(studentPos)}</span></div><div class="group"><label>OUT OF:</label><input type="text" value="${students.length}" class="underline-input" readonly></div></div>
+      <div class="info-row"><label>TERM:</label><input type="text" value="${termName}" class="underline-input" readonly><label style="margin-left:25px;">SESSION:</label><input type="text" value="${sessionName}" class="underline-input" readonly></div>
+      <table><thead><tr><th>S/N</th><th class="subject-col">SUBJECTS</th><th>1ST C.A(20)</th><th>2ND C.A(20)</th><th>EXAM(60)</th><th>TOTAL(100)</th><th>GRADE</th><th>REMARK</th></tr></thead><tbody>${bodyHTML}</tbody></table>
+      <div class="comments">
+        <div class="comment-line"><label>Form Master's Comment:</label><input type="text" value="${studentComment?.comment||''}" class="underline-input" data-field="comment" data-student="${student.id}"></div>
+        <div class="comment-line"><label>Form Master's Name:</label><input type="text" value="${studentComment?.form_master_name||''}" class="underline-input" data-field="form_master_name" data-student="${student.id}"></div>
+        <div class="comment-line"><label>PRINCIPAL'S COMMENT:</label><input type="text" value="${getPrincipalComment(studentTotal)}" class="underline-input" readonly></div>
+        <div class="dates-row">
+          <div class="group"><label>Term Began:</label><input type="text" placeholder="e.g 12th Sept 2026" value="${studentComment?.term_began||''}" class="underline-input" data-field="term_began" data-student="${student.id}"></div>
+          <div class="group"><label>Ended on:</label><input type="text" placeholder="e.g 15th Dec 2026" value="${studentComment?.term_ended||''}" class="underline-input" data-field="term_ended" data-student="${student.id}"></div>
+          <div class="group"><label>Next term:</label><input type="text" placeholder="e.g 10th Jan 2027" value="${studentComment?.next_term||''}" class="underline-input" data-field="next_term" data-student="${student.id}"></div>
+        </div>
+      </div>
+      <div class="signatures"><div class="sig-box"><div class="sig-area"><img class="principal-sig-img" src="${principalSig||''}"></div><div class="sig-buttons"><button type="button" onclick="document.getElementById('principal-file').click()">Upload</button><button type="button" onclick="removeSignature('principal')">Remove</button></div><div class="sig-label">Principal's Signature</div></div><div class="sig-box"><div class="sig-area"><img class="master-sig-img" src="${masterSig||''}"></div><div class="sig-buttons"><button type="button" onclick="document.getElementById('master-file').click()">Upload</button><button type="button" onclick="removeSignature('master')">Remove</button></div><div class="sig-label">Form Master's Signature</div></div></div></div>`;
+  }
+  allHTML += `<input type="file" id="principal-file" accept="image/*" style="display:none;" onchange="uploadSignature(this,'principal')"><input type="file" id="master-file" accept="image/*" style="display:none;" onchange="uploadSignature(this,'master')">`;
+  document.getElementById("allReportsContainer").innerHTML = allHTML;
+}
+
+// SAVE ALL FOR ALL STUDENTS
+async function saveAll(){
+  if(studentsList.length==0){alert("Load reports first");return;}
+  const term_began = document.querySelector(`[data-field="term_began"]`)?.value || "";
+  const term_ended = document.querySelector(`[data-field="term_ended"]`)?.value || "";
+  const next_term = document.querySelector(`[data-field="next_term"]`)?.value || "";
+  let dataToUpsert = studentsList.map(student=>{
+    const commentInput = document.querySelector(`[data-student="${student.id}"][data-field="comment"]`);
+    const nameInput = document.querySelector(`[data-student="${student.id}"][data-field="form_master_name"]`);
+    return {student_id: student.id, class_name: currentClassName, term_id: currentTermId, session_id: currentSessionId, comment: commentInput?.value || "", form_master_name: nameInput?.value || "", term_began: term_began, term_ended: term_ended, next_term: next_term}
+  });
+  const {error} = await db.from("student_comments").upsert(dataToUpsert, {onConflict: 'student_id,term_id,session_id'});
+  if(error){alert("Error: "+error.message)}else{alert("Saved for all "+studentsList.length+" students")}
+}
+</script>
+</body>
+</html>

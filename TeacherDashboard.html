@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Teacher Dashboard</title>
+
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+<style>
+*{ margin:0; padding:0; box-sizing:border-box; font-family:'Poppins', 'Segoe UI', Arial, sans-serif; }
+body{ background:#f4f5fb; font-size:14px; visibility:hidden; } /* HIDDEN UNTIL CHECK */
+.navbar{ background:#111827; color:white; padding:12px 15px; display:flex; justify-content:space-between; align-items:center; position:sticky; top:0; z-index:1000; box-shadow:0 2px 5px rgba(0,0,0,.2); }
+.navbar .left{ display:flex; align-items:center; gap:8px; }
+.navbar .hamburger{ font-size:20px; cursor:pointer; }
+.navbar h3{ font-size:16px; font-weight:600; }
+.profile{ font-size:12px; font-weight:600; }
+.container{ display:flex; min-height:100vh; position:relative; }
+
+/* FIXED: SCROLLABLE SLIDING SIDEBAR */
+.sidebar{ 
+    width:240px; 
+    background:linear-gradient(180deg,#111827,#1e3a8a); 
+    color:white; 
+    padding:15px 15px 80px 15px; /* extra padding bottom */
+    transition: transform 0.3s ease; 
+    position:fixed; 
+    left:0; 
+    top:48px; 
+    height:calc(100% - 48px); 
+    z-index:999; 
+    transform: translateX(-100%); 
+    overflow-y: auto; /* ALLOW SCROLL */
+}
+.sidebar.active{ transform: translateX(0); box-shadow: 2px 0 15px rgba(0,0,0,0.3); }
+
+.logo{ font-size:18px; font-weight:700; margin-bottom:20px; text-align:center; }
+.menu{ list-style:none; }
+.menu li{ margin-bottom:8px; }
+.menu a{ text-decoration:none; color:white; display:flex; align-items:center; gap:10px; padding:10px 12px; border-radius:8px; transition:.3s; cursor:pointer; white-space:nowrap; font-size:13px; font-weight:500; }
+.menu a:hover, .menu a.active{ background:#2563eb; }
+.menu a i{ width:18px; }
+.main{ flex:1; padding:15px; }
+.topbar{ background:white; padding:15px; border-radius:12px; box-shadow:0 2px 10px rgba(0,0,0,.08); display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; }
+.topbar h2{ color:#222; font-size:18px; font-weight:700; }
+.content{ background:white; border-radius:12px; box-shadow:0 2px 10px rgba(0,0,0,.08); min-height:calc(100vh - 150px); padding:0; overflow:hidden; }
+.section-title{ font-size:16px; font-weight:600; margin-bottom:15px; padding:15px 15px 0 15px; }
+table{ width:100%; border-collapse:collapse; font-size:12px; }
+table th{ background:#2563eb; color:white; padding:8px; text-align:left; font-weight:600; }
+table td{ padding:8px; border-bottom:1px solid #ddd; }
+
+/* FIXED: FADE OVERLAY */
+.overlay{ 
+    display:none; 
+    position:fixed; 
+    top:48px; 
+    left:0; 
+    width:100%; 
+    height:calc(100% - 48px); 
+    background:rgba(0,0,0,0.5); 
+    z-index:998; 
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+.overlay.active{ display:block; opacity: 1; }
+iframe{width:100%; height:calc(5000vh - 120px); border:none;}
+</style>
+</head>
+<body>
+
+<div class="navbar">
+    <div class="left">
+        <div class="hamburger" onclick="toggleSidebar()"><i class="fas fa-bars"></i></div>
+        <h3>Teacher Dashboard</h3>
+    </div>
+    <div class="profile" id="teacherName">Welcome Teacher</div>
+</div>
+
+<div class="overlay" id="overlay" onclick="toggleSidebar()"></div>
+
+<div class="container">
+    <div class="sidebar" id="sidebar">
+        <div class="logo">TEACHER PANEL</div>
+        <ul class="menu">
+            <li><a onclick="showDashboard(this)"><i class="fas fa-home"></i> Dashboard</a></li>
+            <li><a onclick="openPage(this, 'MarkSheet.html')"><i class="fas fa-edit"></i> Enter Marks</a></li>
+            <li><a onclick="openPage(this, 'ViewSaveMarks.html')"><i class="fas fa-save"></i> View Saved Marks</a></li>
+            <li><a onclick="openPage(this, 'TeacherComment.html')"><i class="fas fa-calendar-check"></i> Form Master's Comment</a></li>
+            <li><a onclick="openPage(this, 'TeacherClassRegister.html')"><i class="fas fa-chalkboard"></i> Class Register</a></li>
+            <li><a onclick="openPage(this, 'TeacherClassSubjects.html')"><i class="fas fa-book"></i> Class Register Subject</a></li>
+            <li><a onclick="openPage(this, 'TeacherClassStudents.html')"><i class="fas fa-users"></i> Class Register Students</a></li>
+            <li><a onclick="openPage(this, 'ReportSheet.html')"><i class="fas fa-chart-bar"></i> Report Sheet</a></li>
+            <li><a onclick="openPage(this, 'BroadSheet_Teacher.html')"><i class="fas fa-chart-bar"></i> BroadSheet</a></li>
+            <li><a onclick="openPage(this, 'Overall_Year_Teacher.html')"><i class="fas fa-chart-pie"></i> Overall Marks</a></li>
+            <li><a onclick="logout()"><i class="fas fa-sign-out-alt"></i> Logout</a></li>
+        </ul>
+    </div>
+
+    <div class="main" id="mainContent">
+        <div class="topbar">
+            <h2 id="pageTitle">Dashboard Overview</h2>
+        </div>
+        <div class="content" id="contentArea">
+            <h3 class="section-title">Assigned Subjects</h3>
+            <table>
+                <thead><tr><th>S/N</th><th>CLASS ASSIGNED</th><th>SUBJECT ASSIGNED</th></tr></thead>
+                <tbody id="assignedTable"><tr><td colspan="3">Loading...</td></tr></tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<script>
+const SUPABASE_URL = 'https://izhxzibsixhbsucfquyt.supabase.co'
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml6aHh6aWJzaXhoYnN1Y2ZxdXl0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODUzNzk0NTgsImV4cCI6MjEwMDk1NTQ1OH0.vnP0BhywqE0kt1zrxwq7uGeJ76EOowOHXi5CNyMGWUM'
+const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY)
+
+let CURRENT_TERM = ""; let AMOUNT_PER_STUDENT = 100;
+let BANK_NAME = ""; let ACCOUNT_NAME = ""; let ACCOUNT_NO = "";
+const userRole = localStorage.getItem('userRole');
+const isSuper = localStorage.getItem('isSuper');
+
+async function getSettings(){
+    let {data} = await db.from('app_settings').select('*').eq('id',1).single();
+    if(data){
+        CURRENT_TERM=data.current_term;
+        AMOUNT_PER_STUDENT=data.amount_per_student;
+        BANK_NAME=data.bank_name; ACCOUNT_NAME=data.account_name; ACCOUNT_NO=data.account_no;
+        return data.trial_active; // ADD THIS: return trial status
+    }
+    return false;
+}
+
+/* ===== NEW TRIAL + SUBSCRIPTION CHECK ===== */
+async function checkSubscription(){
+    const trialActive = await getSettings(); // Get trial status first
+
+    // 1. Super Admin always bypass
+    if(isSuper === 'true'){
+        document.body.style.visibility = 'visible';
+        return;
+    }
+
+    // 2. If not Admin/Teacher, show page
+    if(userRole!== 'Admin' && userRole!== 'Teacher'){
+        document.body.style.visibility = 'visible';
+        return;
+    }
+
+    // 3. NEW RULE: IF TRIAL IS OFF AND NO PAID SUBSCRIPTION = LOCK BOTH
+    let {data: sub} = await db.from('subscriptions').select('*').eq('term', CURRENT_TERM).eq('status', 'paid').maybeSingle();
+
+    if(trialActive === true){
+        // Trial is ON, everyone can enter
+        document.body.style.visibility = 'visible';
+        return;
+    }
+
+    if(sub){
+        // Trial OFF but they paid, everyone can enter
+        document.body.style.visibility = 'visible';
+        return;
+    }
+
+    // 4. TRIAL OFF AND NOT PAID = SHOW SUBSCRIBE PAGE FOR BOTH
+    let {count} = await db.from('students').select('*', {count:'exact'});
+    let amount = (count || 0) * AMOUNT_PER_STUDENT;
+
+    document.body.style.overflow = 'hidden';
+    document.body.insertAdjacentHTML('beforeend', `
+    <div style="position:fixed; top:0; left:0; width:100%; height:100%; background:linear-gradient(135deg, #1e3a8a 0%, #2563eb 100%); z-index:9999; display:flex; align-items:flex-start; justify-content:center; padding:20px; font-family:'Poppins', sans-serif; overflow-y:auto;">
+        <div style="max-width:480px; width:100%; background:#fff; padding:35px 30px; border-radius:20px; box-shadow:0 10px 40px rgba(0,0,0,0.25); text-align:center; border-top:5px solid #2563eb; margin: 20px 0;">
+            <div style="width:60px; height:60px; background:#fee2e2; border-radius:50%; display:flex; align-items:center; justify-content:center; margin:0 auto 15px;">
+                <i class="fa-solid fa-lock" style="font-size:28px; color:#dc2626;"></i>
+            </div>
+            <h2 style="color:#1e3a8a; margin-bottom:8px; font-size:24px; font-weight:700;">Dashboard Locked</h2>
+            <p style="color:#64748b; font-size:14px; margin-bottom:20px;">${trialActive? 'Admin must pay to continue' : 'Free Trial Ended. Admin must subscribe to unlock Admin & Teacher Dashboard'}</p>
+            <div style="background:#f1f5f9; padding:18px; border-radius:12px; margin-bottom:20px; text-align:left;">
+                <p style="margin:6px 0; font-size:14px; color:#334155;"><b style="color:#1e3a8a;">Term:</b> ${CURRENT_TERM}</p>
+                <p style="margin:6px 0; font-size:14px; color:#334155;"><b style="color:#1e3a8a;">Total Students:</b> ${count}</p>
+                <p style="margin:6px 0; font-size:14px; color:#334155;"><b style="color:#1e3a8a;">Rate:</b> ₦${AMOUNT_PER_STUDENT.toLocaleString()} per student</p>
+            </div>
+            <div style="background:#dbeafe; padding:18px; border-radius:12px; margin-bottom:20px;">
+                <h3 style="margin:0; color:#1e3a8a; font-size:22px; font-weight:700;">Total: ₦${amount.toLocaleString()}</h3>
+            </div>
+            <div style="background:#f8fafc; padding:15px; border-radius:10px; margin-bottom:20px; text-align:left; border-left:3px solid #2563eb;">
+                <p style="margin:4px 0; font-size:13px; color:#334155;"><b style="color:#1e3a8a;">Bank:</b> ${BANK_NAME}</p>
+                <p style="margin:4px 0; font-size:13px; color:#334155;"><b style="color:#1e3a8a;">Account Name:</b> ${ACCOUNT_NAME}</p>
+                <p style="margin:4px 0; font-size:13px; color:#334155;"><b style="color:#1e3a8a;">Account No:</b> ${ACCOUNT_NO}</p>
+            </div>
+            <p style="color:#dc2626; font-size:12px; font-weight:600; margin:15px 0;">⚠️ Only Admin pays. Teacher access is automatic after payment</p>
+            <div style="text-align:left; margin-bottom:15px;">
+                <label style="font-size:12px; color:#475569; font-weight:600; display:block; margin-bottom:6px;">Upload Payment Proof</label>
+                <input type="file" id="proof" accept="image/*,.pdf" style="width:100%; padding:10px; border:2px dashed #cbd5e1; border-radius:8px; background:#f8fafc; font-size:13px;">
+            </div>
+            <div style="text-align:left; margin-bottom:20px;">
+                <label style="font-size:12px; color:#475569; font-weight:600; display:block; margin-bottom:6px;">Teller No / Transaction Ref</label>
+                <input type="text" id="note" placeholder="Enter transaction reference" style="width:100%; padding:12px; border:1px solid #cbd5e1; border-radius:8px; font-size:14px;">
+            </div>
+            <button onclick="submitProof(${count}, ${amount})" style="background:linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%); color:#fff; padding:14px 20px; border:none; border-radius:10px; width:100%; cursor:pointer; font-size:15px; font-weight:700; margin-bottom:10px;">Submit Proof</button>
+            <button onclick="logout()" style="background:#f1f5f9; color:#ef4444; padding:12px 20px; border:1px solid #fecaca; border-radius:10px; width:100%; cursor:pointer; font-size:14px; font-weight:600;">Logout</button>
+        </div>
+    </div>`);
+}
+
+async function submitProof(count, amount){
+    const file = document.getElementById('proof').files[0]; const note = document.getElementById('note').value;
+    if(!file ||!note) return alert('Upload proof and enter teller no');
+    const {data: upload} = await db.storage.from('payment-proofs').upload(`term_${CURRENT_TERM}/${Date.now()}_${file.name}`, file);
+    const proofUrl = db.storage.from('payment-proofs').getPublicUrl(upload.path).data.publicUrl;
+    await db.from('subscriptions').insert({term: CURRENT_TERM, student_count: count, amount: amount, proof_url: proofUrl, payment_note: note, status: 'pending'});
+    alert('Proof submitted. Wait for Super Admin approval'); location.reload();
+}
+
+const teacherCode = localStorage.getItem('teacherCode');
+const teacherName = localStorage.getItem('teacherName');
+const teacherId = localStorage.getItem('teacherId')
+
+document.getElementById('teacherName').innerText = 'Hi, ' + (teacherName || 'Teacher')
+
+if(!teacherCode && isSuper!== 'true'){
+    alert('Please login first');
+    window.location.href = 'teacher-code.html';
+}
+
+function toggleSidebar(){
+    const sidebar = document.getElementById('sidebar');
+    const overlay = document.getElementById('overlay');
+    sidebar.classList.toggle('active');
+    overlay.classList.toggle('active');
+    document.body.style.overflow = sidebar.classList.contains('active')? 'hidden' : 'auto';
+}
+
+async function loadAssigned(){
+    if(!teacherCode) return;
+    let {data, error} = await db.from('teacher_subjects')
+       .select(`classes!inner(class_name), subjects!inner(subject_name)`)
+       .eq('teacher_code', teacherCode)
+
+    if(error) return;
+    let tbody = '';
+    if(data.length === 0){
+        tbody = '<tr><td colspan="3">No subjects assigned by Admin</td></tr>';
+    } else {
+        data.forEach((d, i) => {
+            tbody += `<tr><td>${i+1}</td><td>${d.classes.class_name}</td><td>${d.subjects.subject_name}</td></tr>`
+        });
+    }
+    document.getElementById('assignedTable').innerHTML = tbody;
+}
+
+function openPage(el, page){
+    document.querySelectorAll('.menu a').forEach(a => a.classList.remove('active'))
+    el.classList.add('active')
+    document.getElementById('pageTitle').innerText = el.innerText.trim();
+    document.getElementById('contentArea').innerHTML = `<iframe src="./${page}"></iframe>`
+    toggleSidebar(); // AUTO CLOSE
+}
+
+function showDashboard(el){
+    document.querySelectorAll('.menu a').forEach(a => a.classList.remove('active'))
+    el.classList.add('active')
+    document.getElementById('pageTitle').innerText = 'Dashboard Overview';
+    document.getElementById('contentArea').innerHTML = `
+        <h3 class="section-title">Assigned Subjects</h3>
+        <table>
+            <thead><tr><th>S/N</th><th>CLASS ASSIGNED</th><th>SUBJECT ASSIGNED</th></tr></thead>
+            <tbody id="assignedTable"><tr><td colspan="3">Loading...</td></tr></tbody>
+        </table>
+    `;
+    loadAssigned();
+}
+
+function logout(){
+    localStorage.clear();
+    window.location.href = './teacher-code.html'
+}
+
+document.addEventListener('DOMContentLoaded', async () => {
+    await checkSubscription();
+    document.body.style.visibility = 'visible';
+    loadAssigned();
+    document.querySelector('.menu a').classList.add('active')
+});
+</script>
+</body>
+</html>

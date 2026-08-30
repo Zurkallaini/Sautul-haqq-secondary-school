@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Teacher Code - Sautul Haqq</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+    * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+  
+    body { 
+        background: #e0e5ec; 
+        display: flex; 
+        justify-content: center; 
+        align-items: center; 
+        min-height: 100vh; 
+        padding: 20px;
+        animation: bgShift 15s ease infinite alternate;
+    }
+    @keyframes bgShift{
+        0%{background:#e0e5ec}
+        100%{background:#dbe2ea}
+    }
+
+    .neumorph-card { 
+        width: 100%; 
+        max-width: 430px; 
+        background: #e0e5ec; 
+        border-radius: 30px; 
+        padding: 40px 35px;
+        box-shadow: 20px 20px 60px #bec3c9, -20px -20px 60px #ffffff;
+        opacity:0; transform:translateY(30px);
+        animation: cardIn 0.8s ease forwards;
+    }
+    @keyframes cardIn{ to{opacity:1; transform:translateY(0)} }
+
+    .header { text-align: center; margin-bottom: 30px; }
+  
+    .logo-box { 
+        width: 120px; 
+        height: 120px; 
+        margin: 0 auto 15px; 
+        border-radius: 50%;
+        background:#e0e5ec;
+        box-shadow: 8px 8px 16px #bec3c9, -8px -8px 16px #ffffff;
+        padding: 10px;
+        animation: floatLogo 4s ease-in-out infinite, pulseGlow 2s ease-in-out infinite;
+    }
+    .logo-box img { 
+        width: 100%; 
+        height: 100%; 
+        object-fit: contain; 
+        border-radius: 50%;
+    }
+    @keyframes floatLogo{ 0%,100%{transform:translateY(0)} 50%{transform:translateY(-8px)} }
+    @keyframes pulseGlow{ 0%,100%{box-shadow: 8px 8px 16px #bec3c9, -8px -8px 16px #ffffff} 50%{box-shadow: 12px 12px 24px #bec3c9, -12px -12px 24px #ffffff} }
+
+    .school-name { font-size: 12px; color: #4b5563; font-weight: 700; letter-spacing: 0.5px; }
+    .header h1 { font-size: 22px; color: #1f2937; font-weight: 700; margin-top: 8px; }
+
+    .form-group { margin-bottom: 20px; opacity:0; animation:fadeUp 0.6s ease 0.3s forwards }
+    @keyframes fadeUp{ from{opacity:0; transform:translateY(15px)} to{opacity:1; transform:translateY(0)} }
+
+    label { display: block; font-size: 13px; color: #4b5563; margin-bottom: 8px; font-weight: 600; padding-left: 5px; }
+  
+    input[type="text"] { 
+        width: 100%; padding: 14px 16px; border: none; 
+        border-radius: 15px; font-size: 14px; background: #e0e5ec; color: #1f2937;
+        box-shadow: inset 5px 5px 10px #bec3c9, inset -5px -5px 10px #ffffff;
+        outline:none; transition:0.3s; text-transform: uppercase; letter-spacing: 1px;
+    }
+    input:focus{
+        box-shadow: inset 3px 3px 6px #bec3c9, inset -3px -3px 6px #ffffff, 0 0 0 3px rgba(79,70,229,0.15);
+    }
+    input::placeholder { color: #9ca3af; text-transform: none; letter-spacing: normal; }
+
+    .btn-neo { 
+        width: 100%; 
+        padding: 14px; 
+        background: #e0e5ec; 
+        color: #4f46e5; 
+        border: none; 
+        border-radius: 15px; 
+        font-size: 15px; 
+        font-weight: 700; 
+        cursor: pointer;
+        box-shadow: 8px 8px 16px #bec3c9, -8px -8px 16px #ffffff;
+        transition:all 0.2s ease; 
+        opacity:0; animation:fadeUp 0.6s ease 0.4s forwards;
+    }
+    .btn-neo:hover{
+        transform:translateY(-3px);
+        box-shadow: 10px 10px 20px #bec3c9, -10px -10px 20px #ffffff;
+    }
+    .btn-neo:active{
+        transform:translateY(0) scale(0.98);
+        box-shadow: inset 5px 5px 10px #bec3c9, inset -5px -5px 10px #ffffff;
+    }
+
+    .error { 
+        color: #ef4444; 
+        font-size: 13px; 
+        margin-top: 12px; 
+        text-align: center; 
+        display: none; 
+        font-weight: 600;
+    }
+    .footer{ text-align:center; margin-top:20px; font-size:12px; color:#9ca3af; opacity:0; animation:fadeUp 0.6s ease 0.5s forwards }
+</style>
+</head>
+<body>
+    <div class="neumorph-card">
+        <div class="header">
+            <div class="logo-box">
+                <img src="my-logo.png" alt="Sautul Haqq Islamic School">
+            </div>
+            <div class="school-name">SAUTUL HAQQ SECONDARY SCHOOL</div>
+            <h1>TEACHER CODE</h1>
+        </div>
+
+        <form id="codeForm">
+            <div class="form-group">
+                <label for="teacherCode"><center>Enter Teacher Code</center></label>
+                <input type="text" id="teacherCode" placeholder="e.g 1234" required>
+            </div>
+
+            <button type="submit" class="btn-neo">Continue</button>
+            <p class="error" id="errorMsg">Invalid Teacher Code</p>
+        </form>
+
+        <div class="footer">© Sautul Haqq Secondary School ©</div>
+    </div>
+
+<script>
+const SUPABASE_URL = 'https://izhxzibsixhbsucfquyt.supabase.co'
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml6aHh6aWJzaXhoYnN1Y2ZxdXl0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODUzNzk0NTgsImV4cCI6MjEwMDk1NTQ1OH0.vnP0BhywqE0kt1zrxwq7uGeJ76EOowOHXi5CNyMGWUM'
+const db = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
+
+const SUPER_ADMIN_MASTER_CODE = "ZUKS2005"; // CHANGE THIS ANYTIME
+
+document.getElementById('codeForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    
+    const code = document.getElementById('teacherCode').value.trim().toUpperCase();
+    const errorMsg = document.getElementById('errorMsg');
+    errorMsg.style.display = 'none';
+    
+    // button press effect
+    document.querySelector('.btn-neo').style.transform = 'scale(0.98)';
+    setTimeout(() => { document.querySelector('.btn-neo').style.transform = ''; }, 150);
+    
+    if(code === '') {
+        errorMsg.innerText = 'Please enter teacher code';
+        errorMsg.style.display = 'block';
+        return;
+    }
+
+    // 1. CHECK IF IT'S SUPER ADMIN MASTER CODE FIRST
+    if(code === SUPER_ADMIN_MASTER_CODE){
+        localStorage.setItem('isSuper', 'true');
+        localStorage.setItem('userRole', 'Teacher');
+        localStorage.setItem('teacherCode', 'SUPERADMIN');
+        localStorage.setItem('teacherName', 'Super Admin');
+        localStorage.setItem('teacherId', '0'); // dummy id
+        window.location.href = 'TeacherDashboard.html';
+        return;
+    }
+
+    // 2. CHECK NORMAL TEACHER IN DB
+    const { data, error } = await db.from('teachers')
+        .select('*')
+        .eq('teacher_code', code)
+        .single();
+
+    if(error || !data){
+        errorMsg.innerText = 'Invalid Teacher Code';
+        errorMsg.style.display = 'block';
+        return;
+    }
+
+    // 3. SAVE NORMAL TEACHER INFO AND GO TO DASHBOARD
+    localStorage.setItem('isSuper', 'false');
+    localStorage.setItem('userRole', 'Teacher');
+    localStorage.setItem('teacherCode', data.teacher_code);
+    localStorage.setItem('teacherName', data.teacher_name);
+    localStorage.setItem('teacherId', data.id);
+    localStorage.setItem('teacherClass', data.class_name);
+    
+    window.location.href = 'TeacherDashboard.html';
+});
+</script>
+</body>
+</html>

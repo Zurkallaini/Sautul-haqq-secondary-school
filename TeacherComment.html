@@ -1,0 +1,478 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Form Master's Comment</title>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+<style>
+*{
+margin:0;
+padding:0;
+box-sizing:border-box;
+font-family:'Segoe UI',Arial,sans-serif
+}
+
+body{
+background:#f3f4f6;
+padding:15px
+}
+
+.box{
+background:#fff;
+border-radius:12px;
+padding:20px;
+margin-bottom:20px;
+box-shadow:0 4px 10px rgba(0,0,0,.1)
+}
+
+h2{
+color:#2563eb;
+margin-bottom:15px;
+text-align:center;
+display:flex;
+align-items:center;
+justify-content:center;
+gap:10px;
+font-size:18px
+}
+
+.class-badge{
+background:#dbeafe;
+color:#1e40af;
+padding:12px;
+border-radius:8px;
+text-align:center;
+font-weight:700;
+margin-bottom:15px;
+font-size:16px
+}
+
+.filter-bar{
+display:grid;
+grid-template-columns:1fr 1fr 1fr;
+gap:10px;
+margin-bottom:10px
+}
+
+@media(max-width:700px){
+.filter-bar{
+grid-template-columns:1fr
+}
+}
+
+select,input,button,textarea{
+padding:12px;
+border:1px solid #d1d5db;
+border-radius:8px;
+width:100%;
+font-size:14px
+}
+
+button{
+background:#2563eb;
+color:#fff;
+border:none;
+cursor:pointer;
+font-weight:600
+}
+
+.btn-save{
+background:#16a34a;
+margin-top:15px;
+padding:14px;
+font-size:16px
+}
+
+.table-wrapper{
+overflow-x:auto
+}
+
+table{
+width:100%;
+border-collapse:collapse;
+min-width:500px
+}
+
+th,td{
+border:1px solid #e5e7eb;
+padding:8px;
+text-align:center
+}
+
+th{
+background:#2563eb;
+color:#fff
+}
+
+textarea{
+height:60px;
+resize:vertical
+}
+
+.alert{
+padding:10px;
+border-radius:8px;
+margin-bottom:10px;
+display:none
+}
+
+.alert.success{
+background:#d1fae5;
+color:#065f46
+}
+
+.alert.error{
+background:#fee2e2;
+color:#991b1b
+}
+</style>
+</head>
+
+<body>
+
+<div id="alertBox" class="alert"></div>
+
+<div class="box">
+
+<h2>👨‍🏫 Form Master's Comment</h2>
+
+<div id="classInfo" class="class-badge">
+Select Class to Begin
+</div>
+
+<div class="filter-bar">
+<select id="attClass">
+<option value="">Select Class</option>
+</select>
+
+<select id="attSession">
+<option value="">Select Session</option>
+</select>
+
+<select id="attTerm">
+<option value="">Select Term</option>
+</select>
+</div>
+
+<input type="text"
+id="formMasterName"
+placeholder="Enter Form Master's Name"
+style="margin-bottom:10px">
+
+<button onclick="loadStudentsForComment()">
+Load Students
+</button>
+
+<div class="table-wrapper">
+
+<table>
+
+<thead>
+<tr>
+<th>S/N</th>
+<th style="text-align:left">STUDENT NAME</th>
+<th>FORM MASTER'S COMMENT</th>
+</tr>
+</thead>
+
+<tbody id="commentTable">
+<tr>
+<td colspan="3">
+Select Class, Session and Term then click Load
+</td>
+</tr>
+</tbody>
+
+</table>
+
+</div>
+
+<button class="btn-save"
+onclick="saveComments()">
+Save Comments
+</button>
+
+</div>
+
+<script>
+
+const SUPABASE_URL='https://izhxzibsixhbsucfquyt.supabase.co'
+const SUPABASE_ANON_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml6aHh6aWJzaXhoYnN1Y2ZxdXl0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODUzNzk0NTgsImV4cCI6MjEwMDk1NTQ1OH0.vnP0BhywqE0kt1zrxwq7uGeJ76EOowOHXi5CNyMGWUM'
+
+const db=supabase.createClient(
+SUPABASE_URL,
+SUPABASE_ANON_KEY
+)
+
+const isAdmin=localStorage.getItem('adminLogin')
+const tCode=localStorage.getItem('teacherCode')
+const tName=localStorage.getItem('teacherName')
+
+let teacherDB_ID=null
+let studentsForComment=[]
+let myClassId=null
+let myClassName=null
+
+function showAlert(msg,type){
+const box=document.getElementById('alertBox')
+box.className=`alert ${type}`
+box.innerText=msg
+box.style.display='block'
+
+setTimeout(()=>{
+box.style.display='none'
+},3000)
+}
+async function loadDropdowns(){
+
+if(!isAdmin && tCode){
+
+let {data:teacher}=await db
+.from('teachers')
+.select('id')
+.eq('teacher_code',tCode)
+.single()
+
+if(teacher)
+teacherDB_ID=teacher.id
+}
+
+const {data:sessions}=await db
+.from('sessions')
+.select('*')
+
+const {data:terms}=await db
+.from('terms')
+.select('*')
+
+attSession.innerHTML=
+'<option value="">Select Session</option>'+
+(sessions||[]).map(s=>
+`<option value="${s.id}">
+${s.session_name}
+</option>`).join('')
+
+attTerm.innerHTML=
+'<option value="">Select Term</option>'+
+(terms||[]).map(t=>
+`<option value="${t.id}">
+${t.term_name}
+</option>`).join('')
+
+if(isAdmin){
+
+const {data:classes}=await db
+.from('classes')
+.select('*')
+.order('class_name')
+
+attClass.innerHTML=
+'<option value="">Select Class</option>'+
+(classes||[]).map(c=>
+`<option value="${c.id}">
+${c.class_name}
+</option>`).join('')
+
+}else{
+
+let {data:myClass}=await db
+.from('class_registers')
+.select('*,classes(class_name)')
+.eq('teacher_id',teacherDB_ID)
+.single()
+
+if(!myClass){
+return showAlert(
+'No Class Assigned To You',
+'error'
+)
+}
+
+myClassId=myClass.class_id
+myClassName=myClass.classes.class_name
+
+attClass.innerHTML=
+`<option value="${myClass.class_id}">
+${myClass.classes.class_name}
+</option>`
+
+attClass.disabled=true
+
+document.getElementById('classInfo')
+.innerText=`Class: ${myClassName}`
+}
+}
+
+async function loadStudentsForComment(){
+
+const classId=attClass.value
+const sessId=attSession.value
+const termId=attTerm.value
+
+if(!classId || !sessId || !termId){
+return showAlert(
+'Select Class, Session and Term',
+'error'
+)
+}
+
+myClassId=classId
+myClassName=
+attClass.options[
+attClass.selectedIndex
+].text
+
+document.getElementById('classInfo')
+.innerText=`Class: ${myClassName}`
+
+const {data:students}=await db
+.from('students')
+.select('*')
+.eq('class_id',classId)
+.order('student_name')
+
+studentsForComment=students||[]
+
+const {data:existing}=await db
+.from('student_comments')
+.select('*')
+.eq('class_id',classId)
+.eq('session_id',sessId)
+.eq('term_id',termId)
+
+commentTable.innerHTML=
+studentsForComment.map((s,i)=>{
+
+const old=existing?.find(
+e=>e.student_id==s.id
+)
+
+return `
+<tr>
+<td>${i+1}</td>
+
+<td style="text-align:left">
+${s.student_name}
+</td>
+
+<td>
+<textarea
+id="comment_${s.id}"
+placeholder="Enter Form Master's Comment"
+>${old?.comment||''}</textarea>
+</td>
+
+</tr>
+`
+}).join('')
+
+if(studentsForComment.length===0){
+
+commentTable.innerHTML=`
+<tr>
+<td colspan="3">
+No Students In This Class
+</td>
+</tr>
+`
+}
+
+showAlert(
+`Loaded ${studentsForComment.length} Students`,
+'success'
+)
+}
+async function saveComments(){
+
+const sessId=attSession.value
+const termId=attTerm.value
+
+const formMasterName=
+document.getElementById(
+'formMasterName'
+).value.trim()
+
+if(!myClassId || !sessId || !termId){
+
+return showAlert(
+'Select Class, Session and Term',
+'error'
+)
+}
+
+if(!formMasterName){
+
+return showAlert(
+'Enter Form Master Name',
+'error'
+)
+}
+
+if(studentsForComment.length===0){
+
+return showAlert(
+'Load Students First',
+'error'
+)
+}
+
+showAlert(
+'Saving...',
+'success'
+)
+
+for(let s of studentsForComment){
+
+const comment=
+document.getElementById(
+`comment_${s.id}`
+)?.value || ''
+
+const {error}=await db
+.from('student_comments')
+.upsert({
+student_id:s.id,
+student_name:s.student_name,
+
+class_id:myClassId,
+class_name:myClassName,
+
+session_id:sessId,
+term_id:termId,
+
+comment:comment,
+
+form_master_name:
+formMasterName
+
+},
+{
+onConflict:
+'student_id,session_id,term_id'
+})
+
+if(error){
+
+return showAlert(
+error.message,
+'error'
+)
+}
+}
+
+showAlert(
+'Form Master Comments Saved Successfully',
+'success'
+)
+
+}
+
+loadDropdowns()
+
+</script>
+
+</body>
+</html>
