@@ -192,8 +192,9 @@
   </div>
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
-// 3D LETTER BY LETTER ANIMATION
+// 3D LETTER ANIMATION (keep same)
 const text = document.getElementById('schoolName').innerText;
 document.getElementById('schoolName').innerHTML = '';
 [...text].forEach((char, i) => {
@@ -203,12 +204,12 @@ document.getElementById('schoolName').innerHTML = '';
   document.getElementById('schoolName').appendChild(span);
 });
 
-// YOUR LOGIN LOGIC + LOADING SPINNER
-const SUPER_ADMIN_EMAIL = "muhammadzurkallaini8@gmail.com";
-const SUPER_ADMIN_PASS = "Zuks2005";
-const SUPER_ADMIN_MASTER_CODE = "ZUKS2005";
+// --- SECURE LOGIN VIA SUPABASE ---
+const SUPABASE_URL = "https://izhxzibsixhbsucfquyt.supabase.co"
+const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml6aHh6aWJzaXhoYnN1Y2ZxdXl0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODUzNzk0NTgsImV4cCI6MjEwMDk1NTQ1OH0.vnP0BhywqE0kt1zrxwq7uGeJ76EOowOHXi5CNyMGWUM"
+const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-document.getElementById('loginForm').addEventListener('submit', function(e) {
+document.getElementById('loginForm').addEventListener('submit', async function(e) {
     e.preventDefault();
     
     const username = document.getElementById('username').value.trim();
@@ -217,60 +218,39 @@ document.getElementById('loginForm').addEventListener('submit', function(e) {
     const errorMsg = document.getElementById('errorMsg');
     const btn = document.getElementById('loginBtn');
     
-    const adminUser = { username: "@sautulhaqq", password: "Admin@sautulhaqq" };
-    const teacherUser = { username: "@sautulhaqq", password: "Teacher@sautulhaqq" };
-    
     errorMsg.style.display = 'none';
-    
-    // SHOW LOADING
     btn.classList.add('loading');
-    
-    setTimeout(() => {
-      // 1. SUPER ADMIN LOGIN AS ADMIN
-      if(username === SUPER_ADMIN_EMAIL && password === SUPER_ADMIN_PASS && role === 'Admin'){
-          localStorage.setItem('userRole', 'Admin');
-          localStorage.setItem('isSuper', 'true');
-          localStorage.setItem('username', username);
-          localStorage.setItem('userEmail', username);
-          window.location.href = 'admin.html';
-          return;
-      }
 
-      // 2. SUPER ADMIN LOGIN AS TEACHER - SKIP TEACHER CODE PAGE
-      if(username === SUPER_ADMIN_EMAIL && password === SUPER_ADMIN_PASS && role === 'Teacher'){
-          localStorage.setItem('userRole', 'Teacher');
-          localStorage.setItem('isSuper', 'true');
-          localStorage.setItem('teacherCode', 'SUPERADMIN');
-          localStorage.setItem('teacherName', 'Super Admin');
-          localStorage.setItem('userEmail', username);
-          window.location.href = 'TeacherDashboard.html';
-          return;
-      }
+    // Call secure function in Supabase - password never in code!
+    const { data, error } = await db.rpc('check_login', {
+      p_username: username,
+      p_password: password,
+      p_role: role
+    });
 
-      // 3. NORMAL ADMIN
-      if(role === 'Admin' && username === adminUser.username && password === adminUser.password) {
-          localStorage.setItem('userRole', 'Admin');
-          localStorage.setItem('isSuper', 'false');
-          localStorage.setItem('username', username);
-          localStorage.setItem('userEmail', username);
-          window.location.href = 'admin.html';
-          return;
-      } 
-      // 4. NORMAL TEACHER - MUST GO THROUGH TEACHER CODE
-      else if(role === 'Teacher' && username === teacherUser.username && password === teacherUser.password) {
-          localStorage.setItem('userRole', 'Teacher');
-          localStorage.setItem('isSuper', 'false');
-          localStorage.setItem('username', username);
-          localStorage.setItem('userEmail', username);
-          window.location.href = 'teacher-code.html';
-          return;
-      }
-      else {
-          btn.classList.remove('loading');
-          errorMsg.style.display = 'block';
-      }
-    }, 800); // fake loading delay
+    btn.classList.remove('loading');
+
+    if(data && data.success){
+        localStorage.setItem('userRole', data.role);
+        localStorage.setItem('isSuper', data.is_super ? 'true' : 'false');
+        localStorage.setItem('username', data.username);
+        localStorage.setItem('userEmail', data.email);
+
+        if(data.role === 'Admin'){
+            window.location.href = 'admin.html';
+        } else {
+            if(data.is_super){
+                localStorage.setItem('teacherCode', 'SUPERADMIN');
+                localStorage.setItem('teacherName', 'Super Admin');
+                window.location.href = 'TeacherDashboard.html';
+            } else {
+                window.location.href = 'teacher-code.html';
+            }
+        }
+    } else {
+        errorMsg.style.display = 'block';
+    }
 });
-</script>
+  </script>
 </body>
 </html>
