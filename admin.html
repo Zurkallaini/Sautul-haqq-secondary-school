@@ -241,6 +241,17 @@ const SUPABASE_URL = 'https://izhxzibsixhbsucfquyt.supabase.co'
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml6aHh6aWJzaXhoYnN1Y2ZxdXl0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODUzNzk0NTgsImV4cCI6MjEwMDk1NTQ1OH0.vnP0BhywqE0kt1zrxwq7uGeJ76EOowOHXi5CNyMGWUM'
 const db = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
 
+// ===== FORCE LOGOUT ALL USERS - ADD HERE =====
+if(localStorage.getItem('app_v') !== '2'){
+  localStorage.clear();
+  localStorage.setItem('app_v', '2');
+  window.location.href = 'index.html';
+}
+function logout(){
+  localStorage.clear();
+  window.location.href = 'index.html';
+}
+// =============================================
 let currentPhotoBase64 = '';
 let classesData = []; let subjectsData = []; let teachersData = [];
 let studentsData = []; let usersData = []; let sessionsData = [];
