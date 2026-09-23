@@ -116,7 +116,13 @@ iframe{width:100%; height:calc(5000vh - 120px); border:none;}
 const SUPABASE_URL = 'https://izhxzibsixhbsucfquyt.supabase.co'
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml6aHh6aWJzaXhoYnN1Y2ZxdXl0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODUzNzk0NTgsImV4cCI6MjEwMDk1NTQ1OH0.vnP0BhywqE0kt1zrxwq7uGeJ76EOowOHXi5CNyMGWUM'
 const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY)
-
+// FORCE LOGOUT SYSTEM - Change this number to logout everyone
+const LOGIN_VERSION = "2"; // change to 3, 4, 5 to logout all
+if(localStorage.getItem('login_version') !== LOGIN_VERSION){
+  localStorage.clear();
+  localStorage.setItem('login_version', LOGIN_VERSION);
+  window.location.href = 'index.html';
+}
 let CURRENT_TERM = ""; let AMOUNT_PER_STUDENT = 100;
 let BANK_NAME = ""; let ACCOUNT_NAME = ""; let ACCOUNT_NO = "";
 const userRole = localStorage.getItem('userRole');
